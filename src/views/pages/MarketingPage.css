@@ -1,0 +1,271 @@
+.marketing {
+  padding: 28px 28px 40px;
+}
+
+.marketing-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-right: -28px;
+  margin-left: -28px;
+  padding: 0 28px 18px;
+  border-bottom: 1px solid #2a2a2a;
+}
+
+.marketing-header h1,
+.marketing-asset-meta h3,
+.marketing-previous h2 {
+  margin: 0;
+  font-weight: 500;
+}
+
+.marketing-header h1 {
+  font-size: 28px;
+  line-height: 34px;
+}
+
+.marketing-header p,
+.marketing-pack-note,
+.marketing-caption,
+.marketing-asset-meta span {
+  margin: 0;
+  color: #8d8d8d;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.marketing-header p {
+  margin-top: 6px;
+}
+
+.marketing-profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  text-align: right;
+}
+
+.marketing-profile strong,
+.marketing-profile span {
+  display: block;
+}
+
+.marketing-profile strong {
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.marketing-profile span {
+  color: #8d8d8d;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.marketing-avatar {
+  width: 36px;
+  height: 36px;
+  border: 2px solid #6b6b6b;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: center 18%;
+  background: #2a2a2a;
+}
+
+.marketing-pack {
+  margin-top: 18px;
+  padding: 18px;
+  border-radius: 12px;
+  background: #141414;
+}
+
+.marketing-pack.is-today {
+  border: 1px solid #1f2b66;
+}
+
+.marketing-pack-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.marketing-pack-date {
+  margin: 0;
+  font-size: 16px;
+  line-height: 22px;
+  font-weight: 500;
+}
+
+.marketing-pack-note {
+  margin-top: 6px;
+  max-width: 42rem;
+}
+
+.marketing-count {
+  display: inline-flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 6px;
+  background: #0026ff;
+  color: #ffffff;
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.marketing-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.marketing-asset {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 10px;
+  background: #1c1c1c;
+}
+
+.marketing-preview {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  background: #101010;
+}
+
+.marketing-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.marketing-type {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.72);
+  color: #ffffff;
+  font-size: 11px;
+  line-height: 14px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.marketing-asset-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+}
+
+.marketing-asset-meta {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.marketing-asset-meta h3 {
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.marketing-asset-meta span {
+  flex-shrink: 0;
+  color: #b5b5b5;
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.marketing-caption {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.marketing-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: auto;
+}
+
+.marketing-actions button {
+  height: 36px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 8px;
+  background: #2a2a2a;
+  color: #ffffff;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 500;
+}
+
+.marketing-actions button.is-primary {
+  background: #0026ff;
+}
+
+.marketing-previous {
+  margin-top: 28px;
+}
+
+.marketing-previous h2 {
+  margin-bottom: 12px;
+  color: #9a9a9a;
+  font-size: 11px;
+  line-height: 14px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.marketing-previous-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.marketing-previous .marketing-pack {
+  margin-top: 0;
+}
+
+@media (max-width: 1100px) {
+  .marketing-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 780px) {
+  .marketing {
+    padding: 20px 16px 32px;
+  }
+
+  .marketing-header {
+    margin-right: -16px;
+    margin-left: -16px;
+    padding: 0 16px 16px;
+  }
+
+  .marketing-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .marketing-pack-heading {
+    flex-direction: column;
+  }
+}

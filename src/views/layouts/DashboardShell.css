@@ -1,0 +1,243 @@
+.dashboard {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 248px minmax(0, 1fr);
+  grid-template-areas: 'sidebar main';
+  background: #000000;
+  color: #ffffff;
+}
+
+.sidebar {
+  grid-area: sidebar;
+  display: flex;
+  flex-direction: column;
+  padding: 22px 16px;
+  border-right: 1px solid #1a1a1a;
+}
+
+.dashboard-main {
+  grid-area: main;
+  min-width: 0;
+}
+
+.mobile-bar,
+.menu-backdrop {
+  display: none;
+}
+
+.sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 8px;
+  font-size: 15px;
+  line-height: 20px;
+  font-weight: 500;
+}
+
+.sidebar-brand img {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+}
+
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 28px;
+}
+
+.sidebar-link {
+  display: flex;
+  align-items: center;
+  height: 40px;
+  padding: 0 14px;
+  border-radius: 8px;
+  color: #8d8d8d;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+}
+
+.sidebar-link.is-active {
+  border-radius: 4px;
+  background: #0026ff;
+  color: #ffffff;
+}
+
+.sidebar-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: auto;
+}
+
+.sidebar-balance,
+.sidebar-wallet,
+.sidebar-logout {
+  display: flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #8d8d8d;
+  font: inherit;
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+  text-align: left;
+}
+
+.sidebar-balance,
+.sidebar-wallet {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 2px;
+  padding-top: 10px;
+  padding-bottom: 10px;
+  background: #141414;
+  color: #ffffff;
+}
+
+.sidebar-balance:hover,
+.sidebar-wallet:hover,
+.sidebar-logout:hover {
+  color: #ffffff;
+}
+
+.sidebar-wallet.is-connected {
+  background: #1c1c1c;
+}
+
+.sidebar-wallet-label {
+  color: #8d8d8d;
+  font-size: 11px;
+  line-height: 14px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.sidebar-wallet-value,
+.sidebar-balance-value {
+  color: #ffffff;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 500;
+}
+
+.sidebar-balance-value {
+  font-size: 18px;
+  line-height: 24px;
+  font-weight: 700;
+}
+
+.menu-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #ffffff;
+}
+
+.menu-toggle-bars {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  width: 18px;
+  height: 18px;
+}
+
+.menu-toggle-bars span {
+  display: block;
+  width: 18px;
+  height: 2px;
+  border-radius: 1px;
+  background: #ffffff;
+  transition: transform 0.18s ease, opacity 0.18s ease;
+}
+
+.dashboard.is-menu-open .menu-toggle-bars span:nth-child(1) {
+  transform: translateY(7px) rotate(45deg);
+}
+
+.dashboard.is-menu-open .menu-toggle-bars span:nth-child(2) {
+  opacity: 0;
+}
+
+.dashboard.is-menu-open .menu-toggle-bars span:nth-child(3) {
+  transform: translateY(-7px) rotate(-45deg);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 780px) {
+  .dashboard {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      'bar'
+      'main';
+  }
+
+  .mobile-bar {
+    display: flex;
+    grid-area: bar;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 14px 16px;
+    border-bottom: 1px solid #1a1a1a;
+    background: #000000;
+  }
+
+  .sidebar {
+    position: fixed;
+    z-index: 30;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: min(280px, 86vw);
+    background: #000000;
+    border-right: 1px solid #1a1a1a;
+    transform: translateX(-105%);
+    transition: transform 0.2s ease;
+  }
+
+  .dashboard.is-menu-open .sidebar {
+    transform: translateX(0);
+  }
+
+  .menu-backdrop {
+    display: block;
+    position: fixed;
+    z-index: 20;
+    inset: 0;
+    border: 0;
+    background: rgba(0, 0, 0, 0.62);
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .dashboard.is-menu-open .menu-backdrop {
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
