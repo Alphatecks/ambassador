@@ -4,20 +4,32 @@
   inset: 0;
   display: grid;
   place-items: center;
-  padding: 24px 16px;
+  padding: 16px;
   background: rgba(0, 0, 0, 0.72);
 }
 
 .qualify-modal {
   position: relative;
+  display: flex;
+  flex-direction: column;
   width: min(760px, 100%);
-  height: auto;
-  max-height: calc(100vh - 48px);
+  max-height: min(720px, calc(100vh - 32px), calc(100dvh - 32px));
   overflow: hidden;
   padding: 22px 22px 16px;
   border-radius: 18px;
   background: #141414;
   color: #ffffff;
+}
+
+.qualify-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding-right: 2px;
+  padding-bottom: 4px;
 }
 
 .qualify-close {
@@ -278,6 +290,7 @@
 
 .qualify-footer {
   display: flex;
+  flex: 0 0 auto;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
@@ -323,6 +336,49 @@
 }
 
 @media (max-width: 720px) {
+  .qualify-backdrop {
+    padding: 12px;
+    align-items: end;
+  }
+
+  .qualify-modal {
+    width: 100%;
+    max-height: calc(100vh - 24px);
+    max-height: calc(100dvh - 24px);
+    padding: 18px 16px 14px;
+    border-radius: 18px 18px 14px 14px;
+  }
+
+  .qualify-modal h2 {
+    font-size: 22px;
+    line-height: 28px;
+  }
+
+  .qualify-tabs {
+    gap: 6px;
+    margin-top: 12px;
+  }
+
+  .qualify-tabs button {
+    height: 32px;
+    padding: 0 12px;
+    font-size: 13px;
+  }
+
+  .qualify-heading {
+    margin-top: 12px;
+  }
+
+  .qualify-name {
+    font-size: 18px;
+    line-height: 24px;
+  }
+
+  .qualify-targets strong {
+    font-size: 24px;
+    line-height: 28px;
+  }
+
   .qualify-unlocks {
     grid-template-columns: 1fr 1fr;
   }
@@ -330,6 +386,8 @@
   .qualify-footer {
     flex-direction: column;
     align-items: stretch;
+    margin-top: 12px;
+    padding-top: 10px;
   }
 
   .qualify-footer button {
@@ -340,5 +398,25 @@
 @media (max-width: 520px) {
   .qualify-unlocks {
     grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-height: 760px) {
+  .qualify-required,
+  .qualify-unlock-title {
+    margin-top: 12px;
+  }
+
+  .qualify-targets {
+    margin-top: 10px;
+  }
+
+  .qualify-targets article {
+    padding: 12px 14px 10px;
+  }
+
+  .qualify-withdraw {
+    margin-top: 8px;
+    padding: 8px 10px;
   }
 }
