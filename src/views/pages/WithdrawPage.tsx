@@ -72,6 +72,11 @@ export function WithdrawPage() {
           <p className="withdraw-value">{dollars(withdraw.withdrawn)}</p>
           <p className="withdraw-copy">Lifetime sent</p>
         </article>
+        <article className="withdraw-panel">
+          <p className="withdraw-kicker">Total earned</p>
+          <p className="withdraw-value">{dollars(withdraw.totalEarned)}</p>
+          <p className="withdraw-copy">All-time commissions</p>
+        </article>
       </section>
 
       <div className="withdraw-layout">

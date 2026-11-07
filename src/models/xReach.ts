@@ -105,6 +105,12 @@ export const xReach = {
       value: '1.1K',
       detail: 'Likes, reposts, replies',
     },
+    {
+      id: 'campaign',
+      label: 'Campaign matches',
+      value: '3',
+      detail: 'Using daily creatives',
+    },
   ],
   rules: [
     {

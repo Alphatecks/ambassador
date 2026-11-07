@@ -28,8 +28,15 @@
   overflow-y: auto;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
   padding-right: 2px;
   padding-bottom: 4px;
+}
+
+.qualify-body::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 
 .qualify-close {

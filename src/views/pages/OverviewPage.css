@@ -474,7 +474,7 @@
 
 .funnel-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 16px;
   margin-top: 12px;
 }
@@ -525,13 +525,8 @@
 
 @media (max-width: 980px) {
   .overview-mission,
-  .funnel-grid,
   .rank-path {
     grid-template-columns: 1fr;
-  }
-
-  .funnel-grid {
-    grid-template-columns: 1fr 1fr;
   }
 }
 
@@ -549,10 +544,6 @@
 
   .overview-hero,
   .overview-mission,
-  .funnel-grid {
-    grid-template-columns: 1fr;
-  }
-
   .overview-hero-profile {
     align-items: flex-start;
   }

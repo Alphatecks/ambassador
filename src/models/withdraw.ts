@@ -52,6 +52,7 @@ export const withdraw = {
   available: 298.5,
   pending: 120,
   withdrawn: 125.5,
+  totalEarned: 544,
   minAmount: 20,
   filters: [
     { id: 'all' as const, label: 'All' },

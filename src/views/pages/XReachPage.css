@@ -82,7 +82,7 @@
 }
 
 .xreach-stats {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .xreach-layout {
@@ -318,10 +318,6 @@
 
   .xreach-profile {
     text-align: left;
-  }
-
-  .xreach-stats {
-    grid-template-columns: 1fr;
   }
 
   .xreach-filters {

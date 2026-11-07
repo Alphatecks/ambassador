@@ -82,7 +82,7 @@
 }
 
 .withdraw-stats {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   margin-top: 18px;
 }
 
@@ -362,10 +362,6 @@
 
   .withdraw-profile {
     text-align: left;
-  }
-
-  .withdraw-stats {
-    grid-template-columns: 1fr;
   }
 
   .withdraw-filters {
