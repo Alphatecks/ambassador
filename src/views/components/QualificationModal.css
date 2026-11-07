@@ -63,8 +63,7 @@
 
 .qualify-tabs button,
 .qualify-footer button,
-.qualify-close,
-.qualify-dots button {
+.qualify-close {
   font: inherit;
 }
 
@@ -211,26 +210,6 @@
   font-size: 28px;
   line-height: 32px;
   font-weight: 500;
-}
-
-.qualify-dots {
-  display: flex;
-  justify-content: center;
-  gap: 8px;
-  margin-top: 12px;
-}
-
-.qualify-dots button {
-  width: 8px;
-  height: 8px;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  background: #3a3a3a;
-}
-
-.qualify-dots button.is-active {
-  background: #0026ff;
 }
 
 .qualify-unlocks {
