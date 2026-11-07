@@ -1,4 +1,4 @@
-import { BrowserRouter, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { DashboardShell } from './views/layouts/DashboardShell.tsx'
 import { LoginPage } from './views/pages/LoginPage.tsx'
 import { MarketingPage } from './views/pages/MarketingPage.tsx'
@@ -23,6 +23,7 @@ export default function App() {
           <Route path="/rewards" element={<RewardsPage />} />
           <Route path="/withdraw" element={<WithdrawPage />} />
         </Route>
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
   )
