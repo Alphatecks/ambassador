@@ -157,7 +157,9 @@ export function QualificationModal({ onClose }: QualificationModalProps) {
             <span aria-hidden="true">i</span>
             {qualification.claimNote}
           </p>
-          <button type="button">{step.rewardLabel}</button>
+          <button type="button" onClick={onClose}>
+            {step.rewardLabel}
+          </button>
         </div>
       </section>
     </div>
