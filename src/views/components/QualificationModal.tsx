@@ -10,6 +10,7 @@ export function QualificationModal({ onClose }: QualificationModalProps) {
   const titleId = useId()
   const targetsRef = useRef<HTMLDivElement>(null)
   const [stepId, setStepId] = useState<QualificationStepId>('rising')
+  const [targetIndex, setTargetIndex] = useState(0)
   const step = qualification.steps.find(item => item.id === stepId) ?? qualification.steps[0]
 
   useEffect(() => {
@@ -27,12 +28,38 @@ export function QualificationModal({ onClose }: QualificationModalProps) {
   }, [onClose])
 
   useEffect(() => {
+    setTargetIndex(0)
     const track = targetsRef.current
     if (track) track.scrollTo({ left: 0 })
   }, [stepId])
 
   function selectStep(nextId: QualificationStepId) {
     setStepId(nextId)
+  }
+
+  function onTargetsScroll() {
+    const track = targetsRef.current
+    if (!track) return
+    const cards = Array.from(track.querySelectorAll<HTMLElement>('article'))
+    let closest = 0
+    let best = Number.POSITIVE_INFINITY
+    cards.forEach((card, index) => {
+      const distance = Math.abs(card.offsetLeft - track.scrollLeft)
+      if (distance < best) {
+        best = distance
+        closest = index
+      }
+    })
+    setTargetIndex(closest)
+  }
+
+  function goToTarget(index: number) {
+    const track = targetsRef.current
+    if (!track) return
+    const card = track.querySelectorAll<HTMLElement>('article')[index]
+    if (!card) return
+    setTargetIndex(index)
+    track.scrollTo({ left: card.offsetLeft, behavior: 'smooth' })
   }
 
   return (
@@ -83,6 +110,7 @@ export function QualificationModal({ onClose }: QualificationModalProps) {
           <div
             className="qualify-targets"
             ref={targetsRef}
+            onScroll={onTargetsScroll}
             aria-label="Qualification targets"
           >
             {step.targets.map(target => (
@@ -91,6 +119,20 @@ export function QualificationModal({ onClose }: QualificationModalProps) {
                 <p>{target.detail}</p>
                 <strong>{target.value}</strong>
               </article>
+            ))}
+          </div>
+
+          <div className="qualify-dots" role="tablist" aria-label="Target slides">
+            {step.targets.map((target, index) => (
+              <button
+                key={target.title}
+                type="button"
+                role="tab"
+                aria-label={target.title}
+                aria-selected={index === targetIndex}
+                className={index === targetIndex ? 'is-active' : ''}
+                onClick={() => goToTarget(index)}
+              />
             ))}
           </div>
 
