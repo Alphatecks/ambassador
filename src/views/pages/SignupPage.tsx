@@ -11,6 +11,10 @@ import {
   signupAmbassador,
   startXAuth,
 } from '../../controllers/ambassadorAuth.ts'
+import {
+  getOAuthHandoffUrl,
+  needsOAuthHandoff,
+} from '../../controllers/oauthDevHandoff.ts'
 import { useAmbassador } from '../../providers/AmbassadorContext.tsx'
 import { useToast } from '../../providers/ToastContext.tsx'
 import './SignupPage.css'
@@ -97,6 +101,14 @@ export function SignupPage() {
 
     try {
       saveSignupDraft(form)
+
+      // X only allows the production callback URL, so local testing bridges
+      // through amb.senseifi.io and bounces code/state back to localhost.
+      if (needsOAuthHandoff()) {
+        window.location.assign(getOAuthHandoffUrl())
+        return
+      }
+
       const data = await startXAuth()
       if (data.min_followers) setMinFollowers(data.min_followers)
       window.location.assign(data.authorize_url)

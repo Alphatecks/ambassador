@@ -11,3 +11,9 @@ export {
   startXAuth,
   type AmbassadorSignupResult,
 } from './ambassadorAuth.ts'
+
+export {
+  bounceOAuthCallbackToLocalDev,
+  getOAuthHandoffUrl,
+  needsOAuthHandoff,
+} from './oauthDevHandoff.ts'

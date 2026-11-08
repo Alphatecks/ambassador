@@ -4,6 +4,7 @@ import { LandingPage } from './views/pages/LandingPage.tsx'
 import { LoginPage } from './views/pages/LoginPage.tsx'
 import { MarketingPage } from './views/pages/MarketingPage.tsx'
 import { OAuthCallbackPage } from './views/pages/OAuthCallbackPage.tsx'
+import { OAuthDevHandoffPage } from './views/pages/OAuthDevHandoffPage.tsx'
 import { OverviewPage } from './views/pages/OverviewPage.tsx'
 import { ReferralsPage } from './views/pages/ReferralsPage.tsx'
 import { RewardsPage } from './views/pages/RewardsPage.tsx'
@@ -19,6 +20,7 @@ export default function App() {
         <Route path="/sign-up" element={<SignupPage />} />
         <Route path="/sign-in" element={<LoginPage />} />
         <Route path="/oauth/callback" element={<OAuthCallbackPage />} />
+        <Route path="/oauth/dev-handoff" element={<OAuthDevHandoffPage />} />
         <Route element={<DashboardShell />}>
           <Route path="/overview" element={<OverviewPage />} />
           <Route path="/referrals" element={<ReferralsPage />} />
