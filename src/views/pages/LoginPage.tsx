@@ -93,7 +93,7 @@ export function LoginPage() {
         </button>
 
         <p className="login-switch">
-          Don't have an account ? <Link to="/">Sign Up</Link>
+          Don't have an account ? <Link to="/sign-up">Sign Up</Link>
         </p>
       </form>
     </main>

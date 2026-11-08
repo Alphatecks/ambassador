@@ -10,6 +10,21 @@ declare module '*.jpg' {
   export default src
 }
 
+declare module '*.webm' {
+  const src: string
+  export default src
+}
+
+declare module '*.mp4' {
+  const src: string
+  export default src
+}
+
+declare module '*.webp' {
+  const src: string
+  export default src
+}
+
 declare module '*.otf' {
   const src: string
   export default src

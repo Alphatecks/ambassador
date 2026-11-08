@@ -1,5 +1,6 @@
 export const influencerRoutes = {
-  signup: { name: 'SignUp', path: '/' },
+  landing: { name: 'Landing', path: '/' },
+  signup: { name: 'SignUp', path: '/sign-up' },
   signIn: { name: 'SignIn', path: '/sign-in' },
   overview: { name: 'Overview', path: '/overview' },
   referrals: { name: 'Referrals', path: '/referrals' },

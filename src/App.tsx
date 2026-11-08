@@ -1,5 +1,6 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { DashboardShell } from './views/layouts/DashboardShell.tsx'
+import { LandingPage } from './views/pages/LandingPage.tsx'
 import { LoginPage } from './views/pages/LoginPage.tsx'
 import { MarketingPage } from './views/pages/MarketingPage.tsx'
 import { OverviewPage } from './views/pages/OverviewPage.tsx'
@@ -13,7 +14,8 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<SignupPage />} />
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/sign-up" element={<SignupPage />} />
         <Route path="/sign-in" element={<LoginPage />} />
         <Route element={<DashboardShell />}>
           <Route path="/overview" element={<OverviewPage />} />

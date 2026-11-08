@@ -34,6 +34,7 @@ export function SignupPage() {
     setXConnected(false)
     setXError(false)
     clearSession()
+    navigate('/')
   }
 
   function connectWithX() {
