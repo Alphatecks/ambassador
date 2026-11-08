@@ -148,26 +148,16 @@ export function SignupPage() {
       clearSignupDraft()
       clearXConnection()
 
-      const hasSession = Boolean(
-        result.data.token || result.data.access_token,
-      )
-      if (hasSession) {
-        connectX({
-          username: username.replace(/^@/, ''),
-          displayName: result.data.ambassador?.display_name,
-          avatarUrl: result.data.ambassador?.avatar_url,
-        })
-      } else {
-        clearSession()
-      }
+      connectX({
+        username: username.replace(/^@/, ''),
+        displayName: result.data.ambassador?.display_name,
+        avatarUrl: result.data.ambassador?.avatar_url,
+      })
 
       showToast({ message: result.message, tone: 'success' })
-      navigate(result.path, {
+      navigate('/overview', {
         replace: true,
-        state:
-          result.path === '/overview'
-            ? { showQualification: true }
-            : { email: form.email.trim() },
+        state: { showQualification: true },
       })
     } catch (err) {
       const message =

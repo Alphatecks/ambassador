@@ -300,19 +300,12 @@ export async function signupAmbassador(
     },
   )
 
-  const hasSession = Boolean(result.data.token || result.data.access_token)
-  const path =
-    result.path ||
-    (hasSession ? '/overview' : '/sign-in')
-
   return {
     data: result.data,
     message:
       result.message ||
       result.data.message ||
-      (hasSession
-        ? 'Account created. Welcome aboard.'
-        : 'Account created. Sign in to continue.'),
-    path,
+      'Account created. Welcome aboard.',
+    path: '/overview',
   }
 }
