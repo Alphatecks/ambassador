@@ -6,10 +6,15 @@ import './SignupPage.css'
 
 const emptyForm = {
   email: '',
+  xHandle: '',
   password: '',
 }
 
 type SignupField = keyof typeof emptyForm
+
+function normalizeHandle(value: string) {
+  return value.trim().replace(/^@+/, '')
+}
 
 export function SignupPage() {
   const navigate = useNavigate()
@@ -37,8 +42,13 @@ export function SignupPage() {
     navigate('/')
   }
 
+  function applyXProfile() {
+    const username = normalizeHandle(form.xHandle)
+    connectX(username ? { username } : undefined)
+  }
+
   function connectWithX() {
-    connectX()
+    applyXProfile()
     setXConnected(true)
     setXError(false)
   }
@@ -49,6 +59,7 @@ export function SignupPage() {
       setXError(true)
       return
     }
+    applyXProfile()
     enterApp()
   }
 
@@ -88,6 +99,14 @@ export function SignupPage() {
             autoComplete="email"
             value={form.email}
             onChange={update('email')}
+          />
+          <Field
+            id="xHandle"
+            label="X handle"
+            placeholder="@username"
+            autoComplete="username"
+            value={form.xHandle}
+            onChange={update('xHandle')}
           />
           <Field
             id="password"
