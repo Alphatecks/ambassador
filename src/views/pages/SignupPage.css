@@ -125,6 +125,21 @@
   background: #222222;
 }
 
+.signup-x:disabled,
+.signup-submit:disabled,
+.signup-cancel:disabled,
+.signup-field input:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+.signup-actions .signup-submit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
 .signup-x-icon {
   width: 14px;
   height: 14px;

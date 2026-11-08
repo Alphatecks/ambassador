@@ -1,5 +1,5 @@
 import { useState, type ChangeEvent, type FormEvent } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import logo from '../../../assets/images/logo.png'
 import { useAmbassador } from '../../providers/AmbassadorContext.tsx'
 import './LoginPage.css'
@@ -11,10 +11,19 @@ const emptyForm = {
 
 type LoginField = keyof typeof emptyForm
 
+type LoginLocationState = {
+  email?: string
+}
+
 export function LoginPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { connectX } = useAmbassador()
-  const [form, setForm] = useState(emptyForm)
+  const incoming = (location.state as LoginLocationState | null)?.email ?? ''
+  const [form, setForm] = useState({
+    ...emptyForm,
+    email: incoming,
+  })
 
   function update(field: LoginField) {
     return (event: ChangeEvent<HTMLInputElement>) => {
