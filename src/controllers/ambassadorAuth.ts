@@ -107,6 +107,36 @@ function resolvePath(...candidates: Array<string | undefined>) {
   return ''
 }
 
+function readErrorMessage(
+  payload: unknown,
+  fallback: string,
+): string {
+  if (!payload || typeof payload !== 'object') return fallback
+
+  const record = payload as Record<string, unknown>
+  const nested =
+    record.data && typeof record.data === 'object'
+      ? (record.data as Record<string, unknown>)
+      : null
+
+  const candidates = [
+    record.error,
+    record.message,
+    record.detail,
+    nested?.error,
+    nested?.message,
+    nested?.detail,
+  ]
+
+  for (const candidate of candidates) {
+    if (typeof candidate === 'string' && candidate.trim()) {
+      return candidate.trim()
+    }
+  }
+
+  return fallback
+}
+
 async function request<T>(
   path: string,
   init?: RequestInit,
@@ -127,11 +157,9 @@ async function request<T>(
     const payload = (await response.json().catch(() => null)) as ApiResponse<T> | null
 
     if (!response.ok || !payload || payload.success === false) {
-      const message =
-        (payload && 'error' in payload && payload.error) ||
-        (payload && 'message' in payload && payload.message) ||
-        `Request failed (${response.status})`
-      throw new Error(message)
+      throw new Error(
+        readErrorMessage(payload, `Request failed (${response.status})`),
+      )
     }
 
     const data = (payload.data ?? ({} as T)) as T
@@ -157,6 +185,14 @@ async function request<T>(
         nested?.next,
       ),
     }
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      throw new Error('The request timed out. Try connecting again.')
+    }
+    if (err instanceof TypeError) {
+      throw new Error('Network error. Check your connection and try again.')
+    }
+    throw err
   } finally {
     window.clearTimeout(timeout)
   }
@@ -212,15 +248,40 @@ export async function startXAuth() {
   return result.data
 }
 
+const completeXAuthInflight = new Map<string, Promise<XAuthCompleteData>>()
+
 export async function completeXAuth(code: string, state: string) {
-  const result = await request<XAuthCompleteData>(
-    '/api/ambassador/auth/x/complete',
-    {
-      method: 'POST',
-      body: JSON.stringify({ code, state }),
-    },
-  )
-  return result.data
+  const key = `${state}:${code}`
+  const existing = completeXAuthInflight.get(key)
+  if (existing) return existing
+
+  const promise = (async () => {
+    const result = await request<XAuthCompleteData>(
+      '/api/ambassador/auth/x/complete',
+      {
+        method: 'POST',
+        body: JSON.stringify({ code, state }),
+      },
+    )
+
+    if (!result.data.connection_token) {
+      throw new Error(
+        result.message ||
+          'X connected, but no connection token was returned. Try again.',
+      )
+    }
+
+    return result.data
+  })()
+
+  completeXAuthInflight.set(key, promise)
+
+  try {
+    return await promise
+  } catch (err) {
+    completeXAuthInflight.delete(key)
+    throw err
+  }
 }
 
 export async function signupAmbassador(
