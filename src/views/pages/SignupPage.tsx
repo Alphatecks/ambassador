@@ -144,8 +144,6 @@ export function SignupPage() {
     try {
       saveSignupDraft(form)
 
-      // Email backup is the only path that should hit /signup.
-      // X-only auth enters the dashboard from the X connection itself.
       if (form.email.trim() || form.password) {
         await finishSignupAndEnterDashboard({
           connectionToken,
@@ -156,7 +154,8 @@ export function SignupPage() {
         return
       }
 
-      enterDashboardFromXConnection()
+      // Exchange X connection_token for a real bearer session, then open overview.
+      await enterDashboardFromXConnection()
     } catch (err) {
       const message =
         err instanceof Error ? err.message : 'Sign up failed. Try again.'

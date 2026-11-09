@@ -397,6 +397,31 @@ export async function startXAuth(intent: XAuthIntent = 'signup') {
 
 const completeXAuthInflight = new Map<string, Promise<XAuthCompleteData>>()
 
+function extractSessionToken(
+  ...sources: Array<Record<string, unknown> | null | undefined>
+) {
+  for (const source of sources) {
+    if (!source) continue
+    const session = asRecord(source.session)
+    const auth = asRecord(source.auth)
+    const token =
+      pickString(
+        source,
+        'session_token',
+        'sessionToken',
+        'access_token',
+        'accessToken',
+        'auth_token',
+        'authToken',
+        'jwt',
+      ) ||
+      pickString(session, 'token', 'access_token', 'session_token') ||
+      pickString(auth, 'token', 'access_token', 'session_token')
+    if (token) return token
+  }
+  return undefined
+}
+
 function normalizeCompleteData(data: unknown): XAuthCompleteData {
   const record = asRecord(data) ?? {}
   const nested = asRecord(record.data) ?? asRecord(record.connection)
@@ -412,29 +437,9 @@ function normalizeCompleteData(data: unknown): XAuthCompleteData {
   const connectionToken =
     pickString(record, 'connection_token', 'connectionToken') ||
     pickString(nested, 'connection_token', 'connectionToken')
-  const accessToken =
-    pickString(
-      record,
-      'access_token',
-      'accessToken',
-      'session_token',
-      'sessionToken',
-      'auth_token',
-      'authToken',
-      'jwt',
-      'token',
-    ) ||
-    pickString(
-      nested,
-      'access_token',
-      'accessToken',
-      'session_token',
-      'sessionToken',
-      'auth_token',
-      'authToken',
-      'jwt',
-      'token',
-    )
+
+  // Never treat connection_token as the bearer session token.
+  const accessToken = extractSessionToken(record, nested, asRecord(record.user), asRecord(record.ambassador))
 
   if (!connectionToken && !accessToken) {
     throw new Error(
@@ -511,6 +516,19 @@ export async function completeXAuth(code: string, state: string) {
   }
 }
 
+function attachSessionToken(data: AmbassadorSignupData): AmbassadorSignupData {
+  const record = asRecord(data) ?? {}
+  const sessionToken =
+    extractSessionToken(record, asRecord(record.ambassador), asRecord(record.user)) ||
+    pickString(record, 'token')
+  if (!sessionToken) return data
+  return {
+    ...data,
+    token: sessionToken,
+    access_token: data.access_token || sessionToken,
+  }
+}
+
 export async function signupAmbassador(
   input: AmbassadorSignupInput,
 ): Promise<AmbassadorSignupResult> {
@@ -530,8 +548,11 @@ export async function signupAmbassador(
   )
 
   const dataRecord = asRecord(result.data)
+  const data = attachSessionToken(
+    (dataRecord ? result.data : {}) as AmbassadorSignupData,
+  )
   return {
-    data: (dataRecord ? result.data : {}) as AmbassadorSignupData,
+    data,
     message:
       result.message ||
       pickString(dataRecord, 'message') ||
@@ -558,14 +579,42 @@ export async function loginAmbassador(
   )
 
   const dataRecord = asRecord(result.data)
+  const data = attachSessionToken(
+    (dataRecord ? result.data : {}) as AmbassadorSignupData,
+  )
   return {
-    data: (dataRecord ? result.data : {}) as AmbassadorSignupData,
+    data,
     message:
       result.message ||
       pickString(dataRecord, 'message') ||
       'Signed in successfully.',
     path: '/overview',
   }
+}
+
+/** Exchange an X connection_token for a real bearer session. */
+export async function exchangeXConnectionForSession(input: {
+  connectionToken: string
+  xHandle?: string
+  intent?: XAuthIntent
+}) {
+  const intent = input.intent ?? readOAuthIntent()
+  const payload = {
+    connection_token: input.connectionToken,
+    x_handle: input.xHandle,
+  }
+
+  if (intent === 'login') {
+    try {
+      return await loginAmbassador(payload)
+    } catch (err) {
+      // Backend X-login may still expect email; signup upserts/signs in with X.
+      const message = err instanceof Error ? err.message : ''
+      if (!/email/i.test(message)) throw err
+    }
+  }
+
+  return signupAmbassador(payload)
 }
 
 export async function finishSignupAndEnterDashboard(input: {
@@ -594,8 +643,15 @@ export async function finishSignupAndEnterDashboard(input: {
     x_handle: input.xHandle,
   })
 
+  const sessionToken = result.data.token || result.data.access_token
+  if (!sessionToken) {
+    throw new Error(
+      'Account created, but no session token was returned. Try signing in again.',
+    )
+  }
+
   persistSessionAndEnter({
-    token: result.data.token || result.data.access_token,
+    token: sessionToken,
     email: input.email?.trim() || profile.email,
     username: profile.username,
     displayName: profile.displayName,
@@ -605,22 +661,17 @@ export async function finishSignupAndEnterDashboard(input: {
 }
 
 /**
- * After X OAuth completes, enter the dashboard from that response alone.
- * Do not call /signup or /login — X complete is the auth step.
+ * After X OAuth completes:
+ * 1) use a real session token if complete returned one
+ * 2) otherwise exchange connection_token via X signup/login (no email)
+ * Never send connection_token as the overview Bearer token.
  */
 export async function finishXAuthAndEnterDashboard(
   complete: XAuthCompleteData,
-  _intent: XAuthIntent = readOAuthIntent(),
+  intent: XAuthIntent = readOAuthIntent(),
 ) {
   const profile = profileFromAuthData(complete)
-  const sessionToken =
-    complete.access_token || complete.token || complete.connection_token
-
-  if (!sessionToken) {
-    throw new Error(
-      'X connected, but no session was returned. Try connecting again.',
-    )
-  }
+  let sessionToken = complete.access_token || complete.token
 
   if (complete.connection_token) {
     saveXConnection({
@@ -632,6 +683,45 @@ export async function finishXAuthAndEnterDashboard(
     })
   }
 
+  if (!sessionToken) {
+    if (!complete.connection_token) {
+      throw new Error(
+        'X connected, but no session was returned. Try connecting again.',
+      )
+    }
+
+    const exchanged = await exchangeXConnectionForSession({
+      connectionToken: complete.connection_token,
+      xHandle:
+        complete.x_handle ||
+        (complete.username ? normalizeXHandle(complete.username) : undefined),
+      intent,
+    })
+    sessionToken = exchanged.data.token || exchanged.data.access_token
+    const exchangedProfile = profileFromAuthData({
+      ...exchanged.data,
+      username: profile.username,
+      display_name: profile.displayName,
+      avatar_url: profile.avatarUrl,
+      x_handle: complete.x_handle,
+    })
+
+    if (!sessionToken) {
+      throw new Error(
+        'X connected, but no session token was returned. Try again.',
+      )
+    }
+
+    persistSessionAndEnter({
+      token: sessionToken,
+      email: exchangedProfile.email || profile.email,
+      username: exchangedProfile.username || profile.username,
+      displayName: exchangedProfile.displayName || profile.displayName,
+      avatarUrl: exchangedProfile.avatarUrl || profile.avatarUrl,
+    })
+    return
+  }
+
   persistSessionAndEnter({
     token: sessionToken,
     email: profile.email,
@@ -641,17 +731,38 @@ export async function finishXAuthAndEnterDashboard(
   })
 }
 
-/** Enter dashboard from an already-saved X connection without hitting /signup. */
-export function enterDashboardFromXConnection() {
+/** Exchange a saved X connection for a bearer session, then open the dashboard. */
+export async function enterDashboardFromXConnection() {
   const connection = readXConnection()
   if (!connection?.connectionToken) {
     throw new Error('Connect with X first.')
   }
 
+  const exchanged = await exchangeXConnectionForSession({
+    connectionToken: connection.connectionToken,
+    xHandle: connection.xHandle,
+    intent: readOAuthIntent(),
+  })
+  const sessionToken = exchanged.data.token || exchanged.data.access_token
+  if (!sessionToken) {
+    throw new Error(
+      'X connected, but no session token was returned. Try again.',
+    )
+  }
+
+  const profile = profileFromAuthData({
+    ...exchanged.data,
+    username: connection.username,
+    display_name: connection.displayName,
+    avatar_url: connection.avatarUrl,
+    x_handle: connection.xHandle,
+  })
+
   persistSessionAndEnter({
-    token: connection.connectionToken,
-    username: connection.username || connection.xHandle?.replace(/^@/, ''),
-    displayName: connection.displayName,
-    avatarUrl: connection.avatarUrl,
+    token: sessionToken,
+    email: profile.email,
+    username: profile.username,
+    displayName: profile.displayName,
+    avatarUrl: profile.avatarUrl,
   })
 }

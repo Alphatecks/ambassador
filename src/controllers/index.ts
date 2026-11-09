@@ -8,6 +8,7 @@ export {
   enterDashboardAfterLogin,
   enterDashboardAfterSignup,
   enterDashboardFromXConnection,
+  exchangeXConnectionForSession,
   finishSignupAndEnterDashboard,
   finishXAuthAndEnterDashboard,
   loginAmbassador,
