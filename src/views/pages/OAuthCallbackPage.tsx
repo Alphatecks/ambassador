@@ -7,6 +7,7 @@ import {
   finishSignupAndEnterDashboard,
   normalizeXHandle,
   readSignupDraft,
+  readXConnection,
   saveSignupError,
   saveXConnection,
 } from '../../controllers/ambassadorAuth.ts'
