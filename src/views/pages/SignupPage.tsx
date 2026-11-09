@@ -4,11 +4,14 @@ import logo from '../../../assets/images/logo.png'
 import {
   clearSignupDraft,
   clearXConnection,
+  consumeSignupError,
+  enterDashboardAfterSignup,
+  finishSignupAndEnterDashboard,
   normalizeXHandle,
+  readAmbassadorSession,
   readSignupDraft,
   readXConnection,
   saveSignupDraft,
-  signupAmbassador,
   startXAuth,
 } from '../../controllers/ambassadorAuth.ts'
 import {
@@ -30,7 +33,7 @@ type SignupField = keyof typeof emptyForm
 export function SignupPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
-  const { connectX, clearSession } = useAmbassador()
+  const { clearSession } = useAmbassador()
   const { showToast } = useToast()
   const [form, setForm] = useState(emptyForm)
   const [connectionToken, setConnectionToken] = useState('')
@@ -42,6 +45,17 @@ export function SignupPage() {
   const [minFollowers, setMinFollowers] = useState<number | null>(null)
 
   useEffect(() => {
+    if (readAmbassadorSession()) {
+      enterDashboardAfterSignup()
+      return
+    }
+
+    const pendingError = consumeSignupError()
+    if (pendingError) {
+      setFormError(pendingError)
+      showToast({ message: pendingError, tone: 'error' })
+    }
+
     const draft = readSignupDraft()
     if (draft) {
       setForm({
@@ -65,7 +79,7 @@ export function SignupPage() {
           (connection.username ? `@${connection.username}` : current.xHandle),
       }))
     }
-  }, [])
+  }, [showToast])
 
   useEffect(() => {
     if (searchParams.get('x') === 'connected' && !readXConnection()?.connectionToken) {
@@ -143,33 +157,12 @@ export function SignupPage() {
 
     setSubmitting(true)
     try {
-      const result = await signupAmbassador({
+      saveSignupDraft(form)
+      await finishSignupAndEnterDashboard({
         email: form.email.trim(),
         password: form.password,
-        x_handle: handle,
-        connection_token: connectionToken,
-      })
-
-      const username =
-        result.data.ambassador?.username ||
-        result.data.user?.username ||
-        result.data.ambassador?.x_handle ||
-        result.data.user?.x_handle ||
-        handle
-
-      clearSignupDraft()
-      clearXConnection()
-
-      connectX({
-        username: username.replace(/^@/, ''),
-        displayName: result.data.ambassador?.display_name,
-        avatarUrl: result.data.ambassador?.avatar_url,
-      })
-
-      showToast({ message: result.message, tone: 'success' })
-      navigate('/overview', {
-        replace: true,
-        state: { showQualification: true },
+        xHandle: handle,
+        connectionToken,
       })
     } catch (err) {
       const message =
@@ -186,11 +179,43 @@ export function SignupPage() {
         <img className="signup-logo" src={logo} alt="SenseiFi" />
         <h1>Sign up as an ambassador</h1>
         <p className="signup-lead">
-          Connect with X first, then finish with email and password
+          Fill email, handle, and password, then Connect with X — we finish signup
+          automatically
           {minFollowers ? ` · ${minFollowers.toLocaleString()}+ followers required` : ''}
         </p>
 
         <div className="signup-fields">
+          <Field
+            id="email"
+            label="Email"
+            type="email"
+            placeholder="Enter email"
+            autoComplete="email"
+            value={form.email}
+            onChange={update('email')}
+            disabled={submitting || connecting}
+          />
+          <Field
+            id="xHandle"
+            label="X handle"
+            placeholder="@username"
+            autoComplete="username"
+            value={form.xHandle}
+            onChange={update('xHandle')}
+            disabled={submitting || connecting}
+          />
+          <Field
+            id="password"
+            label="Password"
+            type="password"
+            placeholder="At least 8 characters"
+            autoComplete="new-password"
+            value={form.password}
+            onChange={update('password')}
+            disabled={submitting || connecting}
+            minLength={8}
+          />
+
           <div className="signup-field signup-connect">
             <span className="signup-connect-label">X account</span>
             <button
@@ -214,36 +239,6 @@ export function SignupPage() {
             ) : null}
           </div>
 
-          <Field
-            id="email"
-            label="Email"
-            type="email"
-            placeholder="Enter email"
-            autoComplete="email"
-            value={form.email}
-            onChange={update('email')}
-            disabled={submitting}
-          />
-          <Field
-            id="xHandle"
-            label="X handle"
-            placeholder="@username"
-            autoComplete="username"
-            value={form.xHandle}
-            onChange={update('xHandle')}
-            disabled={submitting}
-          />
-          <Field
-            id="password"
-            label="Password"
-            type="password"
-            placeholder="At least 8 characters"
-            autoComplete="new-password"
-            value={form.password}
-            onChange={update('password')}
-            disabled={submitting}
-            minLength={8}
-          />
           {formError ? (
             <p className="signup-error" role="alert">
               {formError}
@@ -261,7 +256,7 @@ export function SignupPage() {
             Cancel
           </button>
           <button className="signup-submit" type="submit" disabled={connecting || submitting}>
-            {submitting ? 'Creating account…' : 'Sign Up'}
+            {submitting ? 'Opening dashboard…' : 'Sign Up'}
           </button>
         </div>
 

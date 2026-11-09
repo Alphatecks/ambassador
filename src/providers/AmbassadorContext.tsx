@@ -6,6 +6,11 @@ import {
   type ReactNode,
 } from 'react'
 import avatar from '../../assets/images/ambassador-avatar.jpg'
+import {
+  clearAmbassadorSession,
+  readAmbassadorSession,
+  saveAmbassadorSession,
+} from '../controllers/ambassadorAuth.ts'
 
 export type XProfile = {
   username: string
@@ -45,8 +50,20 @@ export function shortenAddress(address: string) {
   return `${address.slice(0, 6)}…${address.slice(-4)}`
 }
 
+function profileFromSession(): XProfile | null {
+  const session = readAmbassadorSession()
+  if (!session?.username && !session?.email) return null
+  return {
+    username: (session.username || defaultXProfile.username).replace(/^@/, ''),
+    displayName: session.displayName || defaultXProfile.displayName,
+    avatarUrl: session.avatarUrl || defaultXProfile.avatarUrl,
+  }
+}
+
 export function AmbassadorProvider({ children }: { children: ReactNode }) {
-  const [xProfile, setXProfile] = useState<XProfile | null>(null)
+  const [xProfile, setXProfile] = useState<XProfile | null>(() =>
+    profileFromSession(),
+  )
   const [wallet, setWallet] = useState<WalletAccount | null>(null)
 
   const value = useMemo<AmbassadorContextValue>(
@@ -54,13 +71,21 @@ export function AmbassadorProvider({ children }: { children: ReactNode }) {
       xProfile,
       wallet,
       connectX(profile) {
-        setXProfile({
+        const next = {
           ...defaultXProfile,
           ...profile,
           username: (profile?.username ?? defaultXProfile.username).replace(
             /^@/,
             '',
           ),
+        }
+        setXProfile(next)
+        const existing = readAmbassadorSession()
+        saveAmbassadorSession({
+          ...existing,
+          username: next.username,
+          displayName: next.displayName,
+          avatarUrl: next.avatarUrl,
         })
       },
       connectWallet() {
@@ -70,6 +95,7 @@ export function AmbassadorProvider({ children }: { children: ReactNode }) {
         setWallet(null)
       },
       clearSession() {
+        clearAmbassadorSession()
         setXProfile(null)
         setWallet(null)
       },

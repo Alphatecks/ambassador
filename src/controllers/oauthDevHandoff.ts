@@ -2,6 +2,9 @@ import { env } from '../config/env.ts'
 
 const LOCAL_RETURN_KEY = 'senseifi.oauth.localReturn'
 
+/** Survives React Strict Mode remounts so we never complete after a bounce starts. */
+const bouncedCallbackKeys = new Set<string>()
+
 /** Only bounce OAuth codes back to local HTTP origins. */
 export function isAllowedLocalReturnOrigin(value: string) {
   try {
@@ -50,6 +53,12 @@ export function clearLocalOAuthReturn() {
  * so complete + signup draft stay on the local app.
  */
 export function bounceOAuthCallbackToLocalDev(search: string) {
+  const params = new URLSearchParams(search)
+  const bounceKey = `${params.get('state') || ''}:${params.get('code') || ''}`
+  if (bounceKey !== ':' && bouncedCallbackKeys.has(bounceKey)) {
+    return true
+  }
+
   const returnOrigin = readLocalOAuthReturn()
   if (!returnOrigin) return false
   if (window.location.origin === returnOrigin) {
@@ -57,8 +66,8 @@ export function bounceOAuthCallbackToLocalDev(search: string) {
     return false
   }
 
+  if (bounceKey !== ':') bouncedCallbackKeys.add(bounceKey)
   clearLocalOAuthReturn()
-  const params = new URLSearchParams(search)
   const target = new URL('/oauth/callback', `${returnOrigin}/`)
   params.forEach((value, key) => {
     target.searchParams.set(key, value)

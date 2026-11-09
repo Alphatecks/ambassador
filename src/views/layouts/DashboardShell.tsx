@@ -1,11 +1,18 @@
 import { useEffect, useState } from 'react'
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import {
+  NavLink,
+  Outlet,
+  useLocation,
+  useNavigate,
+  useSearchParams,
+} from 'react-router-dom'
 import logo from '../../../assets/images/logo.png'
 import { withdraw } from '../../models/withdraw.ts'
 import {
   shortenAddress,
   useAmbassador,
 } from '../../providers/AmbassadorContext.tsx'
+import { useToast } from '../../providers/ToastContext.tsx'
 import { QualificationModal } from '../components/QualificationModal.tsx'
 import './DashboardShell.css'
 
@@ -24,10 +31,12 @@ type DashboardLocationState = {
 
 export function DashboardShell() {
   const { clearSession, wallet, connectWallet, disconnectWallet } = useAmbassador()
+  const { showToast } = useToast()
   const [menuOpen, setMenuOpen] = useState(false)
   const [qualificationOpen, setQualificationOpen] = useState(false)
   const location = useLocation()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
 
   useEffect(() => {
     setMenuOpen(false)
@@ -35,10 +44,18 @@ export function DashboardShell() {
 
   useEffect(() => {
     const state = location.state as DashboardLocationState | null
-    if (!state?.showQualification) return
+    const welcomed = searchParams.get('welcome') === '1'
+    if (!state?.showQualification && !welcomed) return
+
     setQualificationOpen(true)
+    if (welcomed) {
+      showToast({
+        message: 'Account created. Welcome aboard.',
+        tone: 'success',
+      })
+    }
     navigate(location.pathname, { replace: true, state: null })
-  }, [location.pathname, location.state, navigate])
+  }, [location.pathname, location.state, navigate, searchParams, showToast])
 
   useEffect(() => {
     if (!menuOpen) return

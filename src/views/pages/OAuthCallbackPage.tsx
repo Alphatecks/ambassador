@@ -3,7 +3,11 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import logo from '../../../assets/images/logo.png'
 import {
   completeXAuth,
+  draftIsReadyForSignup,
+  finishSignupAndEnterDashboard,
   normalizeXHandle,
+  readSignupDraft,
+  saveSignupError,
   saveXConnection,
 } from '../../controllers/ambassadorAuth.ts'
 import { bounceOAuthCallbackToLocalDev } from '../../controllers/oauthDevHandoff.ts'
@@ -73,17 +77,36 @@ export function OAuthCallbackPage() {
         if (!active) return
 
         const username = (data.username || data.x_handle || '').replace(/^@/, '')
+        const xHandle = data.x_handle
+          ? normalizeXHandle(data.x_handle)
+          : username
+            ? normalizeXHandle(username)
+            : undefined
+
         saveXConnection({
           connectionToken: data.connection_token,
-          xHandle: data.x_handle
-            ? normalizeXHandle(data.x_handle)
-            : username
-              ? normalizeXHandle(username)
-              : undefined,
+          xHandle,
           username: username || undefined,
           displayName: data.display_name,
           avatarUrl: data.avatar_url,
         })
+
+        const draft = readSignupDraft()
+        if (draftIsReadyForSignup(draft)) {
+          setStatus('Creating your ambassador account…')
+          await finishSignupAndEnterDashboard({
+            email: draft!.email,
+            password: draft!.password,
+            xHandle: xHandle || draft!.xHandle,
+            connectionToken: data.connection_token,
+            profile: {
+              username: username || undefined,
+              displayName: data.display_name,
+              avatarUrl: data.avatar_url,
+            },
+          })
+          return
+        }
 
         setStatus('X connected. Returning to sign up…')
         navigate('/sign-up?x=connected', { replace: true })
@@ -93,6 +116,15 @@ export function OAuthCallbackPage() {
           err instanceof Error
             ? err.message
             : 'Could not complete X connection. Try again.'
+
+        // X may already be linked; keep them on the form with the real error.
+        if (readXConnection()?.connectionToken || readSignupDraft()) {
+          saveSignupError(message)
+          showToast({ message, tone: 'error' })
+          navigate('/sign-up?x=connected', { replace: true })
+          return
+        }
+
         setError(message)
         showToast({ message, tone: 'error' })
       }
