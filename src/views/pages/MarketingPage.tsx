@@ -1,18 +1,95 @@
-import { useState } from 'react'
-import avatar from '../../../assets/images/ambassador-avatar.jpg'
+import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
-  marketing,
-  marketingPacks,
-  typeLabels,
-  type MarketingAsset,
-  type MarketingPack,
-} from '../../models/marketing.ts'
+  downloadMarketingAsset,
+  fetchAmbassadorMarketing,
+  fetchMarketingAssetPreview,
+  type MarketingPageData,
+} from '../../controllers/ambassadorMarketing.ts'
+import { getSessionToken } from '../../controllers/apiClient.ts'
+import { typeLabels, type MarketingAsset, type MarketingPack } from '../../models/marketing.ts'
+import {
+  defaultXProfile,
+  useAmbassador,
+} from '../../providers/AmbassadorContext.tsx'
 import './MarketingPage.css'
 
+const emptyMarketing = (): MarketingPageData => ({
+  title: 'Marketing',
+  subtitle: 'Daily creatives from admin. Download them and reshare on your platforms.',
+  todayNote: 'Admin refreshes this pack every day. Grab today’s assets before they rotate.',
+  previousTitle: 'Previous days',
+  packs: [],
+})
+
 export function MarketingPage() {
+  const { xProfile } = useAmbassador()
+  const profile = xProfile ?? defaultXProfile
   const [copiedId, setCopiedId] = useState('')
-  const todayPack = marketingPacks.find(pack => pack.isToday) ?? marketingPacks[0]
-  const previousPacks = marketingPacks.filter(pack => !pack.isToday)
+  const [downloadingId, setDownloadingId] = useState('')
+  const [marketing, setMarketing] = useState<MarketingPageData>(() => emptyMarketing())
+  const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({})
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    let active = true
+    const objectUrls: string[] = []
+
+    async function load() {
+      if (!getSessionToken()) {
+        if (!active) return
+        setMarketing(emptyMarketing())
+        setError('Sign in again to load marketing creatives.')
+        setLoading(false)
+        return
+      }
+
+      setLoading(true)
+      try {
+        const data = await fetchAmbassadorMarketing()
+        if (!active) return
+        setMarketing(data)
+        setError('')
+
+        const nextPreviews: Record<string, string> = {}
+        await Promise.all(
+          data.packs.flatMap(pack =>
+            pack.assets.map(async asset => {
+              try {
+                const preview = await fetchMarketingAssetPreview(asset)
+                if (!active) return
+                if (preview?.startsWith('blob:')) objectUrls.push(preview)
+                if (preview) nextPreviews[asset.id] = preview
+              } catch {
+                if (asset.preview) nextPreviews[asset.id] = asset.preview
+              }
+            }),
+          ),
+        )
+
+        if (active) setPreviewUrls(nextPreviews)
+      } catch (err) {
+        if (!active) return
+        setMarketing(emptyMarketing())
+        setError(
+          err instanceof Error ? err.message : 'Could not load marketing creatives.',
+        )
+      } finally {
+        if (active) setLoading(false)
+      }
+    }
+
+    void load()
+
+    return () => {
+      active = false
+      for (const url of objectUrls) URL.revokeObjectURL(url)
+    }
+  }, [])
+
+  const todayPack = marketing.packs.find(pack => pack.isToday) ?? marketing.packs[0]
+  const previousPacks = marketing.packs.filter(pack => pack.id !== todayPack?.id)
 
   async function copyCaption(asset: MarketingAsset) {
     try {
@@ -27,36 +104,32 @@ export function MarketingPage() {
   }
 
   async function downloadAsset(asset: MarketingAsset) {
+    setDownloadingId(asset.id)
     try {
-      const blob =
-        asset.type === 'caption'
-          ? new Blob([asset.caption], { type: 'text/plain;charset=utf-8' })
-          : await (await fetch(asset.downloadUrl)).blob()
+      const { blob, fileName } = await downloadMarketingAsset(asset)
       const objectUrl = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = objectUrl
-      link.download = asset.fileName
+      link.download = fileName || asset.fileName
       document.body.appendChild(link)
       link.click()
       link.remove()
       URL.revokeObjectURL(objectUrl)
-    } catch {
-      const link = document.createElement('a')
-      link.href = asset.downloadUrl
-      link.download = asset.fileName
-      link.target = '_blank'
-      link.rel = 'noreferrer'
-      document.body.appendChild(link)
-      link.click()
-      link.remove()
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : 'Could not download this creative.',
+      )
+    } finally {
+      setDownloadingId(current => (current === asset.id ? '' : current))
     }
   }
 
   function renderAsset(asset: MarketingAsset) {
+    const preview = previewUrls[asset.id] || asset.preview
     return (
       <article className="marketing-asset" key={asset.id}>
         <div className="marketing-preview">
-          <img src={asset.preview} alt="" />
+          {preview ? <img src={preview} alt="" /> : <div className="marketing-preview-empty" />}
           <span className="marketing-type">{typeLabels[asset.type]}</span>
         </div>
         <div className="marketing-asset-body">
@@ -64,12 +137,17 @@ export function MarketingPage() {
             <h3>{asset.title}</h3>
             <span>{asset.platform}</span>
           </div>
-          <p className="marketing-caption">{asset.caption}</p>
+          <p className="marketing-caption">{asset.caption || 'No caption provided.'}</p>
           <div className="marketing-actions">
-            <button type="button" className="is-primary" onClick={() => downloadAsset(asset)}>
-              Download
+            <button
+              type="button"
+              className="is-primary"
+              onClick={() => downloadAsset(asset)}
+              disabled={downloadingId === asset.id}
+            >
+              {downloadingId === asset.id ? 'Downloading…' : 'Download'}
             </button>
-            <button type="button" onClick={() => copyCaption(asset)}>
+            <button type="button" onClick={() => copyCaption(asset)} disabled={!asset.caption}>
               {copiedId === asset.id ? 'Copied' : 'Copy caption'}
             </button>
           </div>
@@ -92,7 +170,11 @@ export function MarketingPage() {
             {pack.assets.length} asset{pack.assets.length === 1 ? '' : 's'}
           </span>
         </div>
-        <div className="marketing-grid">{pack.assets.map(renderAsset)}</div>
+        {pack.assets.length > 0 ? (
+          <div className="marketing-grid">{pack.assets.map(renderAsset)}</div>
+        ) : (
+          <p className="marketing-empty">No assets in this pack yet.</p>
+        )}
       </section>
     )
   }
@@ -103,15 +185,26 @@ export function MarketingPage() {
         <div>
           <h1>{marketing.title}</h1>
           <p>{marketing.subtitle}</p>
+          {loading ? <p className="marketing-status">Loading creatives…</p> : null}
+          {error ? (
+            <p className="marketing-status is-error" role="alert">
+              {error}{' '}
+              {!getSessionToken() ? <Link to="/sign-in">Sign in</Link> : null}
+            </p>
+          ) : null}
         </div>
         <div className="marketing-profile">
           <div>
-            <strong>{marketing.ambassador.name}</strong>
-            <span>{marketing.ambassador.level}</span>
+            <strong>@{profile.username}</strong>
+            <span>Ambassador</span>
           </div>
-          <img className="marketing-avatar" src={avatar} alt="" />
+          <img className="marketing-avatar" src={profile.avatarUrl} alt="" />
         </div>
       </header>
+
+      {!loading && !error && marketing.packs.length === 0 ? (
+        <p className="marketing-empty">No marketing creatives are available yet.</p>
+      ) : null}
 
       {todayPack ? renderPack(todayPack, true) : null}
 

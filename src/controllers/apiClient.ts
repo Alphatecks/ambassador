@@ -97,3 +97,50 @@ export async function apiRequest<T>(
     window.clearTimeout(timeout)
   }
 }
+
+export async function apiDownload(
+  path: string,
+  init?: RequestInit & { auth?: boolean },
+): Promise<{ blob: Blob; fileName?: string }> {
+  const controller = new AbortController()
+  const timeout = window.setTimeout(() => controller.abort(), apiConfig.timeoutMs)
+  const headers = new Headers(init?.headers)
+
+  if (init?.auth !== false) {
+    const token = getSessionToken()
+    if (!token) throw new Error('Missing bearer token. Sign in again.')
+    headers.set('Authorization', `Bearer ${token}`)
+  }
+
+  try {
+    const response = await fetch(`${apiConfig.baseUrl}${path}`, {
+      ...init,
+      method: init?.method ?? 'GET',
+      signal: controller.signal,
+      headers,
+    })
+
+    if (!response.ok) {
+      const payload = await response.json().catch(() => null)
+      throw new Error(
+        readErrorMessage(payload, `Download failed (${response.status})`),
+      )
+    }
+
+    const disposition = response.headers.get('content-disposition') || ''
+    const match = /filename\*?=(?:UTF-8''|")?([^\";]+)"?/i.exec(disposition)
+    const fileName = match?.[1] ? decodeURIComponent(match[1]) : undefined
+    const blob = await response.blob()
+    return { blob, fileName }
+  } catch (err) {
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      throw new Error('The download timed out. Try again.')
+    }
+    if (err instanceof TypeError) {
+      throw new Error('Network error. Check your connection and try again.')
+    }
+    throw err
+  } finally {
+    window.clearTimeout(timeout)
+  }
+}

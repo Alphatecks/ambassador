@@ -34,7 +34,7 @@ export {
   needsOAuthHandoff,
 } from './oauthDevHandoff.ts'
 
-export { getSessionToken, apiRequest } from './apiClient.ts'
+export { getSessionToken, apiRequest, apiDownload } from './apiClient.ts'
 export {
   emptyOverview,
   extractReferralFromOverview,
@@ -43,3 +43,11 @@ export {
   normalizeOverview,
   type OverviewViewModel,
 } from './ambassadorOverview.ts'
+export {
+  downloadMarketingAsset,
+  fetchAmbassadorMarketing,
+  fetchMarketingAssetPreview,
+  marketingAssetFileUrl,
+  normalizeMarketing,
+  type MarketingPageData,
+} from './ambassadorMarketing.ts'

@@ -39,6 +39,36 @@
   margin-top: 6px;
 }
 
+.marketing-status {
+  margin: 8px 0 0;
+  color: #8d8d8d;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.marketing-status.is-error {
+  color: #ff5c5c;
+}
+
+.marketing-status a {
+  color: #4d7cff;
+  font-weight: 500;
+}
+
+.marketing-empty {
+  margin: 24px 0 0;
+  color: #8d8d8d;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.marketing-preview-empty {
+  width: 100%;
+  height: 100%;
+  min-height: 160px;
+  background: #1a1a1a;
+}
+
 .marketing-profile {
   display: flex;
   align-items: center;
