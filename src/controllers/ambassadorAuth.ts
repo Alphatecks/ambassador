@@ -272,20 +272,31 @@ export function clearXConnection() {
 }
 
 export function saveAmbassadorSession(session: StoredAmbassadorSession) {
-  sessionStorage.setItem(SESSION_KEY, JSON.stringify(session))
+  const value = JSON.stringify(session)
+  localStorage.setItem(SESSION_KEY, value)
+  // Drop any tab-scoped copy so logout / refresh stay in sync.
+  sessionStorage.removeItem(SESSION_KEY)
 }
 
 export function readAmbassadorSession(): StoredAmbassadorSession | null {
-  const raw = sessionStorage.getItem(SESSION_KEY)
+  const raw =
+    localStorage.getItem(SESSION_KEY) || sessionStorage.getItem(SESSION_KEY)
   if (!raw) return null
   try {
-    return JSON.parse(raw) as StoredAmbassadorSession
+    const session = JSON.parse(raw) as StoredAmbassadorSession
+    // Migrate older sessionStorage logins to permanent storage.
+    if (!localStorage.getItem(SESSION_KEY)) {
+      localStorage.setItem(SESSION_KEY, raw)
+      sessionStorage.removeItem(SESSION_KEY)
+    }
+    return session
   } catch {
     return null
   }
 }
 
 export function clearAmbassadorSession() {
+  localStorage.removeItem(SESSION_KEY)
   sessionStorage.removeItem(SESSION_KEY)
 }
 
