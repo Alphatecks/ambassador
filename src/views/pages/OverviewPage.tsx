@@ -1,11 +1,11 @@
 import { useEffect, useState, type ChangeEvent } from 'react'
 import { Link } from 'react-router-dom'
 import {
+  emptyOverview,
   fetchAmbassadorOverview,
   type OverviewViewModel,
 } from '../../controllers/ambassadorOverview.ts'
 import { getSessionToken } from '../../controllers/apiClient.ts'
-import { overview as fallbackOverview } from '../../models/overview.ts'
 import {
   defaultXProfile,
   shortenAddress,
@@ -26,8 +26,8 @@ export function OverviewPage() {
   const { xProfile, wallet, connectWallet, disconnectWallet } = useAmbassador()
   const profile = xProfile ?? defaultXProfile
   const [copied, setCopied] = useState(false)
-  const [overview, setOverview] = useState<OverviewViewModel>(fallbackOverview)
-  const [referralLink, setReferralLink] = useState(fallbackOverview.referralLink)
+  const [overview, setOverview] = useState<OverviewViewModel>(() => emptyOverview())
+  const [referralLink, setReferralLink] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
@@ -37,11 +37,14 @@ export function OverviewPage() {
     async function load() {
       if (!getSessionToken()) {
         if (!active) return
+        setOverview(emptyOverview())
+        setReferralLink('')
         setError('Sign in again to load your overview.')
         setLoading(false)
         return
       }
 
+      setLoading(true)
       try {
         const data = await fetchAmbassadorOverview()
         if (!active) return
@@ -50,6 +53,8 @@ export function OverviewPage() {
         setError('')
       } catch (err) {
         if (!active) return
+        setOverview(emptyOverview())
+        setReferralLink('')
         setError(
           err instanceof Error ? err.message : 'Could not load overview.',
         )
@@ -191,7 +196,7 @@ export function OverviewPage() {
       <section className="overview-path panel">
         <div className="panel-heading">
           <h2>Rank path</h2>
-          <span className="status-pill">Live</span>
+          <span className="status-pill">{loading ? 'Loading' : error ? 'Offline' : 'Live'}</span>
         </div>
         <div className="rank-path">
           {overview.step.tiers.map((tier, index) => (
@@ -260,12 +265,19 @@ export function OverviewPage() {
               aria-label="My referral link"
               value={referralLink}
               onChange={updateReferralLink}
+              placeholder={loading ? 'Loading…' : 'No referral link yet'}
+              readOnly={!referralLink}
             />
             <div className="referral-actions">
-              <button type="button" onClick={copyLink}>
+              <button type="button" onClick={copyLink} disabled={!referralLink}>
                 {copied ? 'Copied' : 'Copy link'}
               </button>
-              <button type="button" className="is-primary" onClick={shareCampaign}>
+              <button
+                type="button"
+                className="is-primary"
+                onClick={shareCampaign}
+                disabled={!referralLink}
+              >
                 Share campaign
               </button>
             </div>
@@ -275,14 +287,18 @@ export function OverviewPage() {
           <article className="panel earnings-panel">
             <p className="panel-kicker">Referral earnings</p>
             <p className="panel-value">{dollars(overview.earnings.total)}</p>
-            <ul className="earning-lines">
-              {overview.earnings.lines.map(line => (
-                <li key={line.label}>
-                  <span>{line.label}</span>
-                  <span>{dollars(line.amount)}</span>
-                </li>
-              ))}
-            </ul>
+            {overview.earnings.lines.length > 0 ? (
+              <ul className="earning-lines">
+                {overview.earnings.lines.map(line => (
+                  <li key={line.label}>
+                    <span>{line.label}</span>
+                    <span>{dollars(line.amount)}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="panel-note">No earnings breakdown yet.</p>
+            )}
           </article>
         </div>
       </section>
