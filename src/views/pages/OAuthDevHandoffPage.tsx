@@ -1,7 +1,11 @@
 import { useEffect, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import logo from '../../../assets/images/logo.png'
-import { startXAuth } from '../../controllers/ambassadorAuth.ts'
+import {
+  saveOAuthIntent,
+  startXAuth,
+  type XAuthIntent,
+} from '../../controllers/ambassadorAuth.ts'
 import {
   isAllowedLocalReturnOrigin,
   saveLocalOAuthReturn,
@@ -11,6 +15,8 @@ import './SignupPage.css'
 export function OAuthDevHandoffPage() {
   const [searchParams] = useSearchParams()
   const [error, setError] = useState('')
+  const intent: XAuthIntent =
+    searchParams.get('intent') === 'login' ? 'login' : 'signup'
 
   useEffect(() => {
     const returnOrigin = searchParams.get('return')?.trim() || ''
@@ -23,12 +29,13 @@ export function OAuthDevHandoffPage() {
     }
 
     saveLocalOAuthReturn(returnOrigin)
+    saveOAuthIntent(intent)
 
     let active = true
 
     async function begin() {
       try {
-        const data = await startXAuth()
+        const data = await startXAuth(intent)
         if (!active) return
         window.location.assign(data.authorize_url)
       } catch (err) {
@@ -46,7 +53,7 @@ export function OAuthDevHandoffPage() {
     return () => {
       active = false
     }
-  }, [searchParams])
+  }, [intent, searchParams])
 
   return (
     <main className="signup">
@@ -65,8 +72,11 @@ export function OAuthDevHandoffPage() {
               {error}
             </p>
             <div className="signup-actions">
-              <Link className="signup-submit" to="/sign-up">
-                Back to sign up
+              <Link
+                className="signup-submit"
+                to={intent === 'login' ? '/sign-in' : '/sign-up'}
+              >
+                {intent === 'login' ? 'Back to sign in' : 'Back to sign up'}
               </Link>
             </div>
           </>

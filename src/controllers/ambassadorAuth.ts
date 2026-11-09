@@ -24,6 +24,8 @@ type RequestResult<T> = {
   path?: string
 }
 
+export type XAuthIntent = 'signup' | 'login'
+
 export type XAuthStartData = {
   authorize_url: string
   redirect_uri?: string
@@ -32,12 +34,25 @@ export type XAuthStartData = {
 }
 
 export type XAuthCompleteData = {
-  connection_token: string
+  connection_token?: string
+  access_token?: string
+  token?: string
   x_handle?: string
   username?: string
   display_name?: string
   avatar_url?: string
   followers?: number
+  is_new_user?: boolean
+  ambassador?: AmbassadorProfile
+  user?: AmbassadorProfile
+}
+
+export type AmbassadorProfile = {
+  email?: string
+  x_handle?: string
+  username?: string
+  display_name?: string
+  avatar_url?: string
 }
 
 export type AmbassadorSignupData = {
@@ -47,18 +62,8 @@ export type AmbassadorSignupData = {
   path?: string
   redirect?: string
   next?: string
-  ambassador?: {
-    email?: string
-    x_handle?: string
-    username?: string
-    display_name?: string
-    avatar_url?: string
-  }
-  user?: {
-    email?: string
-    x_handle?: string
-    username?: string
-  }
+  ambassador?: AmbassadorProfile
+  user?: AmbassadorProfile
 }
 
 export type AmbassadorSignupResult = {
@@ -68,16 +73,24 @@ export type AmbassadorSignupResult = {
 }
 
 export type AmbassadorSignupInput = {
-  email: string
-  password: string
-  x_handle: string
   connection_token: string
+  x_handle?: string
+  email?: string
+  password?: string
+}
+
+export type AmbassadorLoginInput = {
+  connection_token?: string
+  x_handle?: string
+  email?: string
+  password?: string
 }
 
 const SIGNUP_DRAFT_KEY = 'senseifi.ambassador.signupDraft'
 const CONNECTION_KEY = 'senseifi.ambassador.xConnection'
 const SESSION_KEY = 'senseifi.ambassador.session'
 const SIGNUP_ERROR_KEY = 'senseifi.ambassador.signupError'
+const OAUTH_INTENT_KEY = 'senseifi.ambassador.oauthIntent'
 
 export type SignupDraft = {
   email: string
@@ -284,7 +297,24 @@ export function consumeSignupError() {
   return message
 }
 
+export function saveOAuthIntent(intent: XAuthIntent) {
+  sessionStorage.setItem(OAUTH_INTENT_KEY, intent)
+}
+
+export function readOAuthIntent(): XAuthIntent {
+  const value = sessionStorage.getItem(OAUTH_INTENT_KEY)
+  return value === 'login' ? 'login' : 'signup'
+}
+
+export function clearOAuthIntent() {
+  sessionStorage.removeItem(OAUTH_INTENT_KEY)
+}
+
 export function enterDashboardAfterSignup() {
+  window.location.replace(`${window.location.origin}/overview?welcome=1`)
+}
+
+export function enterDashboardAfterLogin() {
   window.location.replace(`${window.location.origin}/overview?welcome=1`)
 }
 
@@ -303,10 +333,61 @@ export function draftIsReadyForSignup(draft: SignupDraft | null) {
   )
 }
 
-export async function startXAuth() {
+function profileFromAuthData(data: {
+  ambassador?: AmbassadorProfile
+  user?: AmbassadorProfile
+  username?: string
+  x_handle?: string
+  display_name?: string
+  avatar_url?: string
+}) {
+  const username = (
+    data.ambassador?.username ||
+    data.user?.username ||
+    data.ambassador?.x_handle ||
+    data.user?.x_handle ||
+    data.username ||
+    data.x_handle ||
+    ''
+  ).replace(/^@/, '')
+
+  return {
+    username: username || undefined,
+    displayName:
+      data.ambassador?.display_name ||
+      data.user?.display_name ||
+      data.display_name,
+    avatarUrl:
+      data.ambassador?.avatar_url || data.user?.avatar_url || data.avatar_url,
+    email: data.ambassador?.email || data.user?.email,
+  }
+}
+
+function persistSessionAndEnter(input: {
+  token?: string
+  email?: string
+  username?: string
+  displayName?: string
+  avatarUrl?: string
+}) {
+  saveAmbassadorSession({
+    email: input.email,
+    username: input.username,
+    displayName: input.displayName,
+    avatarUrl: input.avatarUrl,
+    token: input.token,
+  })
+  clearSignupDraft()
+  clearXConnection()
+  clearOAuthIntent()
+  enterDashboardAfterSignup()
+}
+
+export async function startXAuth(intent: XAuthIntent = 'signup') {
+  saveOAuthIntent(intent)
   const result = await request<XAuthStartData>('/api/ambassador/auth/x/start', {
     method: 'POST',
-    body: '{}',
+    body: JSON.stringify({ intent }),
   })
   if (!result.data.authorize_url) {
     throw new Error('X authorize URL was missing from the server response.')
@@ -319,39 +400,70 @@ const completeXAuthInflight = new Map<string, Promise<XAuthCompleteData>>()
 function normalizeCompleteData(data: unknown): XAuthCompleteData {
   const record = asRecord(data) ?? {}
   const nested = asRecord(record.data) ?? asRecord(record.connection)
-  const connectionToken =
-    pickString(record, 'connection_token', 'connectionToken', 'token') ||
-    pickString(nested, 'connection_token', 'connectionToken', 'token')
+  const ambassador =
+    (asRecord(record.ambassador) as AmbassadorProfile | null) ||
+    (asRecord(nested?.ambassador) as AmbassadorProfile | null) ||
+    undefined
+  const user =
+    (asRecord(record.user) as AmbassadorProfile | null) ||
+    (asRecord(nested?.user) as AmbassadorProfile | null) ||
+    undefined
 
-  if (!connectionToken) {
+  const connectionToken =
+    pickString(record, 'connection_token', 'connectionToken') ||
+    pickString(nested, 'connection_token', 'connectionToken')
+  const accessToken =
+    pickString(record, 'access_token', 'accessToken', 'token') ||
+    pickString(nested, 'access_token', 'accessToken', 'token')
+
+  if (!connectionToken && !accessToken) {
     throw new Error(
-      'X connected, but no connection token was returned. Try again.',
+      'X connected, but no session or connection token was returned. Try again.',
     )
   }
 
   const username =
-    pickString(record, 'username') || pickString(nested, 'username')
+    pickString(record, 'username') ||
+    pickString(nested, 'username') ||
+    ambassador?.username ||
+    user?.username
   const xHandle =
     pickString(record, 'x_handle', 'xHandle', 'handle') ||
     pickString(nested, 'x_handle', 'xHandle', 'handle') ||
+    ambassador?.x_handle ||
+    user?.x_handle ||
     (username ? normalizeXHandle(username) : undefined)
 
   return {
     connection_token: connectionToken,
+    access_token: accessToken,
+    token: accessToken,
     x_handle: xHandle,
     username,
     display_name:
       pickString(record, 'display_name', 'displayName', 'name') ||
-      pickString(nested, 'display_name', 'displayName', 'name'),
+      pickString(nested, 'display_name', 'displayName', 'name') ||
+      ambassador?.display_name ||
+      user?.display_name,
     avatar_url:
       pickString(record, 'avatar_url', 'avatarUrl', 'profile_image_url') ||
-      pickString(nested, 'avatar_url', 'avatarUrl', 'profile_image_url'),
+      pickString(nested, 'avatar_url', 'avatarUrl', 'profile_image_url') ||
+      ambassador?.avatar_url ||
+      user?.avatar_url,
     followers:
       typeof record.followers === 'number'
         ? record.followers
         : typeof nested?.followers === 'number'
           ? nested.followers
           : undefined,
+    is_new_user:
+      typeof record.is_new_user === 'boolean'
+        ? record.is_new_user
+        : typeof nested?.is_new_user === 'boolean'
+          ? nested.is_new_user
+          : undefined,
+    ambassador: ambassador || undefined,
+    user: user || undefined,
   }
 }
 
@@ -361,9 +473,10 @@ export async function completeXAuth(code: string, state: string) {
   if (existing) return existing
 
   const promise = (async () => {
+    const intent = readOAuthIntent()
     const result = await request<unknown>('/api/ambassador/auth/x/complete', {
       method: 'POST',
-      body: JSON.stringify({ code, state }),
+      body: JSON.stringify({ code, state, intent }),
     })
     return normalizeCompleteData(result.data)
   })()
@@ -381,16 +494,18 @@ export async function completeXAuth(code: string, state: string) {
 export async function signupAmbassador(
   input: AmbassadorSignupInput,
 ): Promise<AmbassadorSignupResult> {
+  const body: Record<string, string> = {
+    connection_token: input.connection_token,
+  }
+  if (input.x_handle) body.x_handle = normalizeXHandle(input.x_handle)
+  if (input.email?.trim()) body.email = input.email.trim()
+  if (input.password) body.password = input.password
+
   const result = await request<AmbassadorSignupData>(
     '/api/ambassador/auth/signup',
     {
       method: 'POST',
-      body: JSON.stringify({
-        email: input.email,
-        password: input.password,
-        x_handle: normalizeXHandle(input.x_handle),
-        connection_token: input.connection_token,
-      }),
+      body: JSON.stringify(body),
     },
   )
 
@@ -405,44 +520,140 @@ export async function signupAmbassador(
   }
 }
 
+export async function loginAmbassador(
+  input: AmbassadorLoginInput,
+): Promise<AmbassadorSignupResult> {
+  const body: Record<string, string> = {}
+  if (input.connection_token) body.connection_token = input.connection_token
+  if (input.x_handle) body.x_handle = normalizeXHandle(input.x_handle)
+  if (input.email?.trim()) body.email = input.email.trim()
+  if (input.password) body.password = input.password
+
+  const result = await request<AmbassadorSignupData>(
+    '/api/ambassador/auth/login',
+    {
+      method: 'POST',
+      body: JSON.stringify(body),
+    },
+  )
+
+  const dataRecord = asRecord(result.data)
+  return {
+    data: (dataRecord ? result.data : {}) as AmbassadorSignupData,
+    message:
+      result.message ||
+      pickString(dataRecord, 'message') ||
+      'Signed in successfully.',
+    path: '/overview',
+  }
+}
+
 export async function finishSignupAndEnterDashboard(input: {
-  email: string
-  password: string
-  xHandle: string
   connectionToken: string
+  xHandle?: string
+  email?: string
+  password?: string
   profile?: {
     username?: string
     displayName?: string
     avatarUrl?: string
   }
 }) {
-  const handle = normalizeXHandle(input.xHandle)
   const result = await signupAmbassador({
-    email: input.email.trim(),
-    password: input.password,
-    x_handle: handle,
     connection_token: input.connectionToken,
+    x_handle: input.xHandle,
+    email: input.email,
+    password: input.password,
   })
 
-  const username = (
-    result.data.ambassador?.username ||
-    result.data.user?.username ||
-    result.data.ambassador?.x_handle ||
-    result.data.user?.x_handle ||
-    input.profile?.username ||
-    handle
-  ).replace(/^@/, '')
+  const profile = profileFromAuthData({
+    ...result.data,
+    username: input.profile?.username,
+    display_name: input.profile?.displayName,
+    avatar_url: input.profile?.avatarUrl,
+    x_handle: input.xHandle,
+  })
 
-  saveAmbassadorSession({
-    email: input.email.trim(),
-    username,
-    displayName:
-      result.data.ambassador?.display_name || input.profile?.displayName,
-    avatarUrl: result.data.ambassador?.avatar_url || input.profile?.avatarUrl,
+  persistSessionAndEnter({
     token: result.data.token || result.data.access_token,
+    email: input.email?.trim() || profile.email,
+    username: profile.username,
+    displayName: profile.displayName,
+    avatarUrl: profile.avatarUrl,
   })
-  clearSignupDraft()
-  clearXConnection()
-  enterDashboardAfterSignup()
   return result
+}
+
+/**
+ * After X OAuth completes: enter dashboard if the API already issued a session,
+ * otherwise finish with X-only signup/login using the connection token.
+ */
+export async function finishXAuthAndEnterDashboard(
+  complete: XAuthCompleteData,
+  intent: XAuthIntent = readOAuthIntent(),
+) {
+  const sessionToken = complete.access_token || complete.token
+  const profile = profileFromAuthData(complete)
+
+  if (sessionToken) {
+    persistSessionAndEnter({
+      token: sessionToken,
+      email: profile.email,
+      username: profile.username,
+      displayName: profile.displayName,
+      avatarUrl: profile.avatarUrl,
+    })
+    return
+  }
+
+  if (!complete.connection_token) {
+    throw new Error('X connected, but no connection token was returned.')
+  }
+
+  saveXConnection({
+    connectionToken: complete.connection_token,
+    xHandle: complete.x_handle,
+    username: complete.username,
+    displayName: complete.display_name,
+    avatarUrl: complete.avatar_url,
+  })
+
+  const draft = readSignupDraft()
+  const xHandle =
+    complete.x_handle ||
+    (complete.username ? normalizeXHandle(complete.username) : undefined) ||
+    draft?.xHandle
+
+  if (intent === 'login') {
+    const result = await loginAmbassador({
+      connection_token: complete.connection_token,
+      x_handle: xHandle,
+      email: draft?.email || undefined,
+      password: draft?.password || undefined,
+    })
+    const loginProfile = profileFromAuthData({
+      ...result.data,
+      username: profile.username,
+      display_name: profile.displayName,
+      avatar_url: profile.avatarUrl,
+      x_handle: xHandle,
+    })
+    persistSessionAndEnter({
+      token: result.data.token || result.data.access_token,
+      email: draft?.email || loginProfile.email,
+      username: loginProfile.username,
+      displayName: loginProfile.displayName,
+      avatarUrl: loginProfile.avatarUrl,
+    })
+    return
+  }
+
+  // Prefer X-only signup. If a draft exists, include email/password as extras.
+  await finishSignupAndEnterDashboard({
+    connectionToken: complete.connection_token,
+    xHandle,
+    email: draftIsReadyForSignup(draft) ? draft!.email : undefined,
+    password: draftIsReadyForSignup(draft) ? draft!.password : undefined,
+    profile,
+  })
 }

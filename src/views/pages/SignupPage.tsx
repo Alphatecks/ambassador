@@ -1,5 +1,5 @@
 import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import logo from '../../../assets/images/logo.png'
 import {
   clearSignupDraft,
@@ -32,7 +32,6 @@ type SignupField = keyof typeof emptyForm
 
 export function SignupPage() {
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
   const { clearSession } = useAmbassador()
   const { showToast } = useToast()
   const [form, setForm] = useState(emptyForm)
@@ -42,6 +41,7 @@ export function SignupPage() {
   const [formError, setFormError] = useState('')
   const [connecting, setConnecting] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [showEmailBackup, setShowEmailBackup] = useState(false)
   const [minFollowers, setMinFollowers] = useState<number | null>(null)
 
   useEffect(() => {
@@ -63,6 +63,7 @@ export function SignupPage() {
         xHandle: draft.xHandle,
         password: draft.password,
       })
+      if (draft.email || draft.password) setShowEmailBackup(true)
     }
 
     const connection = readXConnection()
@@ -81,12 +82,6 @@ export function SignupPage() {
     }
   }, [showToast])
 
-  useEffect(() => {
-    if (searchParams.get('x') === 'connected' && !readXConnection()?.connectionToken) {
-      setXError('X connection was not saved. Connect with X again.')
-    }
-  }, [searchParams])
-
   function update(field: SignupField) {
     return (event: ChangeEvent<HTMLInputElement>) => {
       const { value } = event.target
@@ -102,6 +97,7 @@ export function SignupPage() {
     setXError('')
     setFormError('')
     setMinFollowers(null)
+    setShowEmailBackup(false)
     clearSignupDraft()
     clearXConnection()
     clearSession()
@@ -116,14 +112,12 @@ export function SignupPage() {
     try {
       saveSignupDraft(form)
 
-      // X only allows the production callback URL, so local testing bridges
-      // through amb.senseifi.io and bounces code/state back to localhost.
       if (needsOAuthHandoff()) {
-        window.location.assign(getOAuthHandoffUrl())
+        window.location.assign(getOAuthHandoffUrl(window.location.origin, 'signup'))
         return
       }
 
-      const data = await startXAuth()
+      const data = await startXAuth('signup')
       if (data.min_followers) setMinFollowers(data.min_followers)
       window.location.assign(data.authorize_url)
     } catch (err) {
@@ -144,25 +138,14 @@ export function SignupPage() {
       return
     }
 
-    const handle = normalizeXHandle(form.xHandle)
-    if (!handle) {
-      setFormError('Enter your X handle')
-      return
-    }
-
-    if (form.password.length < 8) {
-      setFormError('Password must be at least 8 characters')
-      return
-    }
-
     setSubmitting(true)
     try {
       saveSignupDraft(form)
       await finishSignupAndEnterDashboard({
-        email: form.email.trim(),
-        password: form.password,
-        xHandle: handle,
         connectionToken,
+        xHandle: normalizeXHandle(form.xHandle) || undefined,
+        email: form.email.trim() || undefined,
+        password: form.password || undefined,
       })
     } catch (err) {
       const message =
@@ -179,43 +162,11 @@ export function SignupPage() {
         <img className="signup-logo" src={logo} alt="SenseiFi" />
         <h1>Sign up as an ambassador</h1>
         <p className="signup-lead">
-          Fill email, handle, and password, then Connect with X — we finish signup
-          automatically
+          Sign up with X to open your dashboard
           {minFollowers ? ` · ${minFollowers.toLocaleString()}+ followers required` : ''}
         </p>
 
         <div className="signup-fields">
-          <Field
-            id="email"
-            label="Email"
-            type="email"
-            placeholder="Enter email"
-            autoComplete="email"
-            value={form.email}
-            onChange={update('email')}
-            disabled={submitting || connecting}
-          />
-          <Field
-            id="xHandle"
-            label="X handle"
-            placeholder="@username"
-            autoComplete="username"
-            value={form.xHandle}
-            onChange={update('xHandle')}
-            disabled={submitting || connecting}
-          />
-          <Field
-            id="password"
-            label="Password"
-            type="password"
-            placeholder="At least 8 characters"
-            autoComplete="new-password"
-            value={form.password}
-            onChange={update('password')}
-            disabled={submitting || connecting}
-            minLength={8}
-          />
-
           <div className="signup-field signup-connect">
             <span className="signup-connect-label">X account</span>
             <button
@@ -230,7 +181,7 @@ export function SignupPage() {
                 ? 'Redirecting to X…'
                 : xConnected
                   ? 'Connected with X'
-                  : 'Connect with X'}
+                  : 'Sign up with X'}
             </button>
             {xError ? (
               <p className="signup-error" role="alert">
@@ -238,6 +189,62 @@ export function SignupPage() {
               </p>
             ) : null}
           </div>
+
+          {xConnected ? (
+            <button
+              className="signup-submit"
+              type="submit"
+              disabled={connecting || submitting}
+            >
+              {submitting ? 'Opening dashboard…' : 'Continue to dashboard'}
+            </button>
+          ) : null}
+
+          <button
+            className="signup-backup-toggle"
+            type="button"
+            onClick={() => setShowEmailBackup(open => !open)}
+          >
+            {showEmailBackup ? 'Hide email backup' : 'Optional email backup'}
+          </button>
+
+          {showEmailBackup ? (
+            <>
+              <Field
+                id="email"
+                label="Email"
+                type="email"
+                placeholder="Enter email"
+                autoComplete="email"
+                value={form.email}
+                onChange={update('email')}
+                disabled={submitting || connecting}
+                required={false}
+              />
+              <Field
+                id="xHandle"
+                label="X handle"
+                placeholder="@username"
+                autoComplete="username"
+                value={form.xHandle}
+                onChange={update('xHandle')}
+                disabled={submitting || connecting}
+                required={false}
+              />
+              <Field
+                id="password"
+                label="Password"
+                type="password"
+                placeholder="At least 8 characters"
+                autoComplete="new-password"
+                value={form.password}
+                onChange={update('password')}
+                disabled={submitting || connecting}
+                minLength={8}
+                required={false}
+              />
+            </>
+          ) : null}
 
           {formError ? (
             <p className="signup-error" role="alert">
@@ -255,9 +262,16 @@ export function SignupPage() {
           >
             Cancel
           </button>
-          <button className="signup-submit" type="submit" disabled={connecting || submitting}>
-            {submitting ? 'Opening dashboard…' : 'Sign Up'}
-          </button>
+          {xConnected ? null : (
+            <button
+              className="signup-submit"
+              type="button"
+              onClick={connectWithX}
+              disabled={connecting || submitting}
+            >
+              {connecting ? 'Redirecting…' : 'Continue with X'}
+            </button>
+          )}
         </div>
 
         <p className="signup-switch">
@@ -278,6 +292,7 @@ function Field({
   onChange,
   disabled,
   minLength,
+  required = true,
 }: {
   id: string
   label: string
@@ -288,6 +303,7 @@ function Field({
   onChange: (event: ChangeEvent<HTMLInputElement>) => void
   disabled?: boolean
   minLength?: number
+  required?: boolean
 }) {
   return (
     <div className="signup-field">
@@ -300,7 +316,7 @@ function Field({
         placeholder={placeholder}
         value={value}
         onChange={onChange}
-        required
+        required={required}
         disabled={disabled}
         minLength={minLength}
       />

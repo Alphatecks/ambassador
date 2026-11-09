@@ -3,13 +3,11 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import logo from '../../../assets/images/logo.png'
 import {
   completeXAuth,
-  draftIsReadyForSignup,
-  finishSignupAndEnterDashboard,
-  normalizeXHandle,
+  finishXAuthAndEnterDashboard,
+  readOAuthIntent,
   readSignupDraft,
   readXConnection,
   saveSignupError,
-  saveXConnection,
 } from '../../controllers/ambassadorAuth.ts'
 import { bounceOAuthCallbackToLocalDev } from '../../controllers/oauthDevHandoff.ts'
 import { useToast } from '../../providers/ToastContext.tsx'
@@ -42,6 +40,8 @@ export function OAuthCallbackPage() {
   const { showToast } = useToast()
   const [error, setError] = useState('')
   const [status, setStatus] = useState('Finishing your X authorization…')
+  const intent = readOAuthIntent()
+  const backTo = intent === 'login' ? '/sign-in' : '/sign-up'
 
   useEffect(() => {
     if (bounceOAuthCallbackToLocalDev(window.location.search)) {
@@ -63,7 +63,7 @@ export function OAuthCallbackPage() {
 
     if (!code || !state) {
       const message =
-        'Missing X authorization code or state in the callback URL. Start Connect with X again from sign up.'
+        'Missing X authorization code or state in the callback URL. Start again with X.'
       setError(message)
       showToast({ message, tone: 'error' })
       return
@@ -77,52 +77,23 @@ export function OAuthCallbackPage() {
         const data = await completeXAuth(code!, state!)
         if (!active) return
 
-        const username = (data.username || data.x_handle || '').replace(/^@/, '')
-        const xHandle = data.x_handle
-          ? normalizeXHandle(data.x_handle)
-          : username
-            ? normalizeXHandle(username)
-            : undefined
-
-        saveXConnection({
-          connectionToken: data.connection_token,
-          xHandle,
-          username: username || undefined,
-          displayName: data.display_name,
-          avatarUrl: data.avatar_url,
-        })
-
-        const draft = readSignupDraft()
-        if (draftIsReadyForSignup(draft)) {
-          setStatus('Creating your ambassador account…')
-          await finishSignupAndEnterDashboard({
-            email: draft!.email,
-            password: draft!.password,
-            xHandle: xHandle || draft!.xHandle,
-            connectionToken: data.connection_token,
-            profile: {
-              username: username || undefined,
-              displayName: data.display_name,
-              avatarUrl: data.avatar_url,
-            },
-          })
-          return
-        }
-
-        setStatus('X connected. Returning to sign up…')
-        navigate('/sign-up?x=connected', { replace: true })
+        setStatus(
+          intent === 'login'
+            ? 'Signing you in…'
+            : 'Creating your ambassador account…',
+        )
+        await finishXAuthAndEnterDashboard(data, intent)
       } catch (err) {
         if (!active) return
         const message =
           err instanceof Error
             ? err.message
-            : 'Could not complete X connection. Try again.'
+            : 'Could not complete X authorization. Try again.'
 
-        // X may already be linked; keep them on the form with the real error.
         if (readXConnection()?.connectionToken || readSignupDraft()) {
           saveSignupError(message)
           showToast({ message, tone: 'error' })
-          navigate('/sign-up?x=connected', { replace: true })
+          navigate(backTo, { replace: true })
           return
         }
 
@@ -136,16 +107,16 @@ export function OAuthCallbackPage() {
     return () => {
       active = false
     }
-  }, [navigate, searchParams, showToast])
+  }, [backTo, intent, navigate, searchParams, showToast])
 
   return (
     <main className="signup">
       <section className="signup-card">
         <img className="signup-logo" src={logo} alt="SenseiFi" />
-        <h1>{error ? 'X connection failed' : 'Connecting X…'}</h1>
+        <h1>{error ? 'X authorization failed' : 'Connecting X…'}</h1>
         <p className="signup-lead">
           {error
-            ? 'We could not finish linking your X account.'
+            ? 'We could not finish signing you in with X.'
             : status}
         </p>
         {error ? (
@@ -155,8 +126,8 @@ export function OAuthCallbackPage() {
               {error}
             </p>
             <div className="signup-actions">
-              <Link className="signup-submit" to="/sign-up">
-                Back to sign up
+              <Link className="signup-submit" to={backTo}>
+                {intent === 'login' ? 'Back to sign in' : 'Back to sign up'}
               </Link>
             </div>
           </>

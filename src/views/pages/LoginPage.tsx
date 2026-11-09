@@ -1,7 +1,22 @@
-import { useState, type ChangeEvent, type FormEvent } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { useEffect, useState, type ChangeEvent, type FormEvent } from 'react'
+import { Link, useLocation } from 'react-router-dom'
 import logo from '../../../assets/images/logo.png'
+import {
+  clearSignupDraft,
+  consumeSignupError,
+  enterDashboardAfterLogin,
+  loginAmbassador,
+  readAmbassadorSession,
+  saveAmbassadorSession,
+  saveSignupDraft,
+  startXAuth,
+} from '../../controllers/ambassadorAuth.ts'
+import {
+  getOAuthHandoffUrl,
+  needsOAuthHandoff,
+} from '../../controllers/oauthDevHandoff.ts'
 import { useAmbassador } from '../../providers/AmbassadorContext.tsx'
+import { useToast } from '../../providers/ToastContext.tsx'
 import './LoginPage.css'
 
 const emptyForm = {
@@ -16,35 +31,104 @@ type LoginLocationState = {
 }
 
 export function LoginPage() {
-  const navigate = useNavigate()
   const location = useLocation()
   const { connectX } = useAmbassador()
+  const { showToast } = useToast()
   const incoming = (location.state as LoginLocationState | null)?.email ?? ''
   const [form, setForm] = useState({
     ...emptyForm,
     email: incoming,
   })
+  const [connecting, setConnecting] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (readAmbassadorSession()) {
+      enterDashboardAfterLogin()
+      return
+    }
+
+    const pendingError = consumeSignupError()
+    if (pendingError) {
+      setError(pendingError)
+      showToast({ message: pendingError, tone: 'error' })
+    }
+  }, [showToast])
 
   function update(field: LoginField) {
     return (event: ChangeEvent<HTMLInputElement>) => {
       const { value } = event.target
       setForm(current => ({ ...current, [field]: value }))
+      setError('')
     }
   }
 
-  function enterApp() {
-    navigate('/overview', { state: { showQualification: true } })
+  async function connectWithX() {
+    setConnecting(true)
+    setError('')
+    try {
+      saveSignupDraft({
+        email: form.email,
+        password: form.password,
+        xHandle: '',
+      })
+
+      if (needsOAuthHandoff()) {
+        window.location.assign(getOAuthHandoffUrl(window.location.origin, 'login'))
+        return
+      }
+
+      const data = await startXAuth('login')
+      window.location.assign(data.authorize_url)
+    } catch (err) {
+      setConnecting(false)
+      const message =
+        err instanceof Error ? err.message : 'Could not start X sign in.'
+      setError(message)
+      showToast({ message, tone: 'error' })
+    }
   }
 
-  function onSubmit(event: FormEvent<HTMLFormElement>) {
+  async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    connectX()
-    enterApp()
-  }
+    setError('')
+    setSubmitting(true)
 
-  function connectWithX() {
-    connectX()
-    enterApp()
+    try {
+      const result = await loginAmbassador({
+        email: form.email.trim(),
+        password: form.password,
+      })
+      const username = (
+        result.data.ambassador?.username ||
+        result.data.user?.username ||
+        result.data.ambassador?.x_handle ||
+        result.data.user?.x_handle ||
+        ''
+      ).replace(/^@/, '')
+      saveAmbassadorSession({
+        email: form.email.trim(),
+        username: username || undefined,
+        displayName: result.data.ambassador?.display_name,
+        avatarUrl: result.data.ambassador?.avatar_url,
+        token: result.data.token || result.data.access_token,
+      })
+      connectX({
+        username: username || undefined,
+        displayName: result.data.ambassador?.display_name,
+        avatarUrl: result.data.ambassador?.avatar_url,
+      })
+      clearSignupDraft()
+      showToast({ message: result.message, tone: 'success' })
+      enterDashboardAfterLogin()
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : 'Sign in failed. Try again.'
+      setError(message)
+      showToast({ message, tone: 'error' })
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -52,16 +136,19 @@ export function LoginPage() {
       <form className="login-card" onSubmit={onSubmit}>
         <img className="login-logo" src={logo} alt="SenseiFi" />
         <h1>Welcome back</h1>
-        <p className="login-lead">
-          Sign in with X, or use email as a backup
-        </p>
+        <p className="login-lead">Sign in with X, or use email as a backup</p>
 
         <div className="login-fields">
           <div className="login-field login-connect">
             <span className="login-connect-label">X account</span>
-            <button className="login-x" type="button" onClick={connectWithX}>
+            <button
+              className="login-x"
+              type="button"
+              onClick={connectWithX}
+              disabled={connecting || submitting}
+            >
               <XMark />
-              Sign in with X
+              {connecting ? 'Redirecting to X…' : 'Sign in with X'}
             </button>
           </div>
 
@@ -80,6 +167,7 @@ export function LoginPage() {
               value={form.email}
               onChange={update('email')}
               required
+              disabled={submitting || connecting}
             />
           </div>
           <div className="login-field">
@@ -93,12 +181,18 @@ export function LoginPage() {
               value={form.password}
               onChange={update('password')}
               required
+              disabled={submitting || connecting}
             />
           </div>
+          {error ? (
+            <p className="login-error" role="alert">
+              {error}
+            </p>
+          ) : null}
         </div>
 
-        <button className="login-submit" type="submit">
-          Sign in
+        <button className="login-submit" type="submit" disabled={submitting || connecting}>
+          {submitting ? 'Signing in…' : 'Sign in'}
         </button>
 
         <p className="login-switch">

@@ -26,9 +26,13 @@ export function needsOAuthHandoff(origin = window.location.origin) {
   return origin !== env.oauthHandoffOrigin && isLocalDevOrigin(origin)
 }
 
-export function getOAuthHandoffUrl(returnOrigin = window.location.origin) {
+export function getOAuthHandoffUrl(
+  returnOrigin = window.location.origin,
+  intent: 'signup' | 'login' = 'signup',
+) {
   const url = new URL('/oauth/dev-handoff', `${env.oauthHandoffOrigin}/`)
   url.searchParams.set('return', returnOrigin)
+  url.searchParams.set('intent', intent)
   return url.toString()
 }
 
