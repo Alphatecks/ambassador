@@ -52,6 +52,7 @@ export function SignupPage() {
 
     const pendingError = consumeSignupError()
     if (pendingError) {
+      if (/valid email|email/i.test(pendingError)) setShowEmailBackup(true)
       setFormError(pendingError)
       showToast({ message: pendingError, tone: 'error' })
     }
@@ -150,6 +151,9 @@ export function SignupPage() {
     } catch (err) {
       const message =
         err instanceof Error ? err.message : 'Sign up failed. Try again.'
+      if (/valid email|email/i.test(message)) {
+        setShowEmailBackup(true)
+      }
       setFormError(message)
       showToast({ message, tone: 'error' })
       setSubmitting(false)
@@ -190,22 +194,12 @@ export function SignupPage() {
             ) : null}
           </div>
 
-          {xConnected ? (
-            <button
-              className="signup-submit"
-              type="submit"
-              disabled={connecting || submitting}
-            >
-              {submitting ? 'Opening dashboard…' : 'Continue to dashboard'}
-            </button>
-          ) : null}
-
           <button
             className="signup-backup-toggle"
             type="button"
             onClick={() => setShowEmailBackup(open => !open)}
           >
-            {showEmailBackup ? 'Hide email backup' : 'Optional email backup'}
+            {showEmailBackup ? 'Hide email backup' : 'Add email backup (if required)'}
           </button>
 
           {showEmailBackup ? (
@@ -262,7 +256,15 @@ export function SignupPage() {
           >
             Cancel
           </button>
-          {xConnected ? null : (
+          {xConnected ? (
+            <button
+              className="signup-submit"
+              type="submit"
+              disabled={connecting || submitting}
+            >
+              {submitting ? 'Opening dashboard…' : 'Continue to dashboard'}
+            </button>
+          ) : (
             <button
               className="signup-submit"
               type="button"
