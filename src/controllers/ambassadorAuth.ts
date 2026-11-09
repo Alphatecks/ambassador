@@ -413,8 +413,28 @@ function normalizeCompleteData(data: unknown): XAuthCompleteData {
     pickString(record, 'connection_token', 'connectionToken') ||
     pickString(nested, 'connection_token', 'connectionToken')
   const accessToken =
-    pickString(record, 'access_token', 'accessToken', 'token') ||
-    pickString(nested, 'access_token', 'accessToken', 'token')
+    pickString(
+      record,
+      'access_token',
+      'accessToken',
+      'session_token',
+      'sessionToken',
+      'auth_token',
+      'authToken',
+      'jwt',
+      'token',
+    ) ||
+    pickString(
+      nested,
+      'access_token',
+      'accessToken',
+      'session_token',
+      'sessionToken',
+      'auth_token',
+      'authToken',
+      'jwt',
+      'token',
+    )
 
   if (!connectionToken && !accessToken) {
     throw new Error(
@@ -585,75 +605,53 @@ export async function finishSignupAndEnterDashboard(input: {
 }
 
 /**
- * After X OAuth completes: enter dashboard if the API already issued a session,
- * otherwise finish with X-only signup/login using the connection token.
+ * After X OAuth completes, enter the dashboard from that response alone.
+ * Do not call /signup or /login — X complete is the auth step.
  */
 export async function finishXAuthAndEnterDashboard(
   complete: XAuthCompleteData,
-  intent: XAuthIntent = readOAuthIntent(),
+  _intent: XAuthIntent = readOAuthIntent(),
 ) {
-  const sessionToken = complete.access_token || complete.token
   const profile = profileFromAuthData(complete)
+  const sessionToken =
+    complete.access_token || complete.token || complete.connection_token
 
-  if (sessionToken) {
-    persistSessionAndEnter({
-      token: sessionToken,
-      email: profile.email,
-      username: profile.username,
-      displayName: profile.displayName,
-      avatarUrl: profile.avatarUrl,
+  if (!sessionToken) {
+    throw new Error(
+      'X connected, but no session was returned. Try connecting again.',
+    )
+  }
+
+  if (complete.connection_token) {
+    saveXConnection({
+      connectionToken: complete.connection_token,
+      xHandle: complete.x_handle,
+      username: complete.username,
+      displayName: complete.display_name,
+      avatarUrl: complete.avatar_url,
     })
-    return
   }
 
-  if (!complete.connection_token) {
-    throw new Error('X connected, but no connection token was returned.')
-  }
-
-  saveXConnection({
-    connectionToken: complete.connection_token,
-    xHandle: complete.x_handle,
-    username: complete.username,
-    displayName: complete.display_name,
-    avatarUrl: complete.avatar_url,
+  persistSessionAndEnter({
+    token: sessionToken,
+    email: profile.email,
+    username: profile.username,
+    displayName: profile.displayName,
+    avatarUrl: profile.avatarUrl,
   })
+}
 
-  const draft = readSignupDraft()
-  const xHandle =
-    complete.x_handle ||
-    (complete.username ? normalizeXHandle(complete.username) : undefined) ||
-    draft?.xHandle
-
-  if (intent === 'login') {
-    const result = await loginAmbassador({
-      connection_token: complete.connection_token,
-      x_handle: xHandle,
-      email: draft?.email || undefined,
-      password: draft?.password || undefined,
-    })
-    const loginProfile = profileFromAuthData({
-      ...result.data,
-      username: profile.username,
-      display_name: profile.displayName,
-      avatar_url: profile.avatarUrl,
-      x_handle: xHandle,
-    })
-    persistSessionAndEnter({
-      token: result.data.token || result.data.access_token,
-      email: draft?.email || loginProfile.email,
-      username: loginProfile.username,
-      displayName: loginProfile.displayName,
-      avatarUrl: loginProfile.avatarUrl,
-    })
-    return
+/** Enter dashboard from an already-saved X connection without hitting /signup. */
+export function enterDashboardFromXConnection() {
+  const connection = readXConnection()
+  if (!connection?.connectionToken) {
+    throw new Error('Connect with X first.')
   }
 
-  // Prefer X-only signup. If a draft exists, include email/password as extras.
-  await finishSignupAndEnterDashboard({
-    connectionToken: complete.connection_token,
-    xHandle,
-    email: draftIsReadyForSignup(draft) ? draft!.email : undefined,
-    password: draftIsReadyForSignup(draft) ? draft!.password : undefined,
-    profile,
+  persistSessionAndEnter({
+    token: connection.connectionToken,
+    username: connection.username || connection.xHandle?.replace(/^@/, ''),
+    displayName: connection.displayName,
+    avatarUrl: connection.avatarUrl,
   })
 }

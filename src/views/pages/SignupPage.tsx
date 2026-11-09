@@ -6,6 +6,7 @@ import {
   clearXConnection,
   consumeSignupError,
   enterDashboardAfterSignup,
+  enterDashboardFromXConnection,
   finishSignupAndEnterDashboard,
   normalizeXHandle,
   readAmbassadorSession,
@@ -142,12 +143,20 @@ export function SignupPage() {
     setSubmitting(true)
     try {
       saveSignupDraft(form)
-      await finishSignupAndEnterDashboard({
-        connectionToken,
-        xHandle: normalizeXHandle(form.xHandle) || undefined,
-        email: form.email.trim() || undefined,
-        password: form.password || undefined,
-      })
+
+      // Email backup is the only path that should hit /signup.
+      // X-only auth enters the dashboard from the X connection itself.
+      if (form.email.trim() || form.password) {
+        await finishSignupAndEnterDashboard({
+          connectionToken,
+          xHandle: normalizeXHandle(form.xHandle) || undefined,
+          email: form.email.trim() || undefined,
+          password: form.password || undefined,
+        })
+        return
+      }
+
+      enterDashboardFromXConnection()
     } catch (err) {
       const message =
         err instanceof Error ? err.message : 'Sign up failed. Try again.'

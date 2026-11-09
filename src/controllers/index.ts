@@ -7,6 +7,7 @@ export {
   draftIsReadyForSignup,
   enterDashboardAfterLogin,
   enterDashboardAfterSignup,
+  enterDashboardFromXConnection,
   finishSignupAndEnterDashboard,
   finishXAuthAndEnterDashboard,
   loginAmbassador,
