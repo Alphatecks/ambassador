@@ -1,5 +1,11 @@
-import { useState, type ChangeEvent } from 'react'
-import { overview } from '../../models/overview.ts'
+import { useEffect, useState, type ChangeEvent } from 'react'
+import { Link } from 'react-router-dom'
+import {
+  fetchAmbassadorOverview,
+  type OverviewViewModel,
+} from '../../controllers/ambassadorOverview.ts'
+import { getSessionToken } from '../../controllers/apiClient.ts'
+import { overview as fallbackOverview } from '../../models/overview.ts'
 import {
   defaultXProfile,
   shortenAddress,
@@ -20,7 +26,43 @@ export function OverviewPage() {
   const { xProfile, wallet, connectWallet, disconnectWallet } = useAmbassador()
   const profile = xProfile ?? defaultXProfile
   const [copied, setCopied] = useState(false)
-  const [referralLink, setReferralLink] = useState(overview.referralLink)
+  const [overview, setOverview] = useState<OverviewViewModel>(fallbackOverview)
+  const [referralLink, setReferralLink] = useState(fallbackOverview.referralLink)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    let active = true
+
+    async function load() {
+      if (!getSessionToken()) {
+        if (!active) return
+        setError('Sign in again to load your overview.')
+        setLoading(false)
+        return
+      }
+
+      try {
+        const data = await fetchAmbassadorOverview()
+        if (!active) return
+        setOverview(data)
+        setReferralLink(data.referralLink)
+        setError('')
+      } catch (err) {
+        if (!active) return
+        setError(
+          err instanceof Error ? err.message : 'Could not load overview.',
+        )
+      } finally {
+        if (active) setLoading(false)
+      }
+    }
+
+    void load()
+    return () => {
+      active = false
+    }
+  }, [])
 
   function updateReferralLink(event: ChangeEvent<HTMLInputElement>) {
     setReferralLink(event.target.value)
@@ -65,6 +107,13 @@ export function OverviewPage() {
         <div>
           <h1>{overview.title}</h1>
           <p>{overview.subtitle}</p>
+          {loading ? <p className="overview-status">Loading live overview…</p> : null}
+          {error ? (
+            <p className="overview-status is-error" role="alert">
+              {error}{' '}
+              {!getSessionToken() ? <Link to="/sign-in">Sign in</Link> : null}
+            </p>
+          ) : null}
         </div>
         {wallet ? (
           <button
