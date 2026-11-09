@@ -1,6 +1,8 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import checkmark from '../../../assets/images/checkmark-badge-01 (1).png'
+import { fetchAmbassadorReferralLink } from '../../controllers/ambassadorOverview.ts'
+import { readAmbassadorSession } from '../../controllers/ambassadorAuth.ts'
 import {
   referralUsers,
   referrals,
@@ -16,11 +18,40 @@ import './ReferralsPage.css'
 export function ReferralsPage() {
   const { xProfile } = useAmbassador()
   const profile = xProfile ?? defaultXProfile
-  const referralLink = `senseifi.io/r/${profile.username}`
+  const cachedLink = readAmbassadorSession()?.referralLink ?? ''
+  const [referralLink, setReferralLink] = useState(cachedLink)
+  const [linkError, setLinkError] = useState('')
   const [copied, setCopied] = useState(false)
   const [filter, setFilter] = useState<ReferralFilter>('all')
   const [page, setPage] = useState(1)
   const [selectedId, setSelectedId] = useState(referralUsers[0]?.id ?? '')
+
+  useEffect(() => {
+    let active = true
+
+    async function loadLink() {
+      try {
+        const data = await fetchAmbassadorReferralLink()
+        if (!active) return
+        setReferralLink(data.referralLink)
+        setLinkError('')
+      } catch (err) {
+        if (!active) return
+        if (!cachedLink) {
+          setLinkError(
+            err instanceof Error
+              ? err.message
+              : 'Could not load referral link.',
+          )
+        }
+      }
+    }
+
+    void loadLink()
+    return () => {
+      active = false
+    }
+  }, [cachedLink])
 
   const filtered = useMemo(() => {
     if (filter === 'activated') {
@@ -51,11 +82,17 @@ export function ReferralsPage() {
     }
   }
 
+  function shareUrl(link: string) {
+    const trimmed = link.trim()
+    if (/^https?:\/\//i.test(trimmed)) return trimmed
+    return `https://${trimmed}`
+  }
+
   async function shareCampaign() {
     const shareData = {
       title: 'SenseiFi',
       text: referralLink,
-      url: `https://${referralLink}`,
+      url: shareUrl(referralLink),
     }
     if (navigator.share) {
       try {
@@ -108,12 +145,24 @@ export function ReferralsPage() {
         <div className="referrals-main">
           <article className="referrals-card referrals-link-card">
             <h2>My referral link</h2>
-            <p className="referrals-link">{referralLink}</p>
+            <p className="referrals-link">
+              {referralLink || 'Loading referral link…'}
+            </p>
+            {linkError ? (
+              <p className="referrals-note" role="alert">
+                {linkError}
+              </p>
+            ) : null}
             <div className="referrals-actions">
-              <button type="button" onClick={copyLink}>
+              <button type="button" onClick={copyLink} disabled={!referralLink}>
                 {copied ? 'Copied' : 'Copy link'}
               </button>
-              <button type="button" className="is-primary" onClick={shareCampaign}>
+              <button
+                type="button"
+                className="is-primary"
+                onClick={shareCampaign}
+                disabled={!referralLink}
+              >
                 Share campaign
               </button>
             </div>

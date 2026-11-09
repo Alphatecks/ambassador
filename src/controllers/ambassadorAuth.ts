@@ -112,6 +112,8 @@ export type StoredAmbassadorSession = {
   displayName?: string
   avatarUrl?: string
   token?: string
+  referralCode?: string
+  referralLink?: string
 }
 
 function resolvePath(...candidates: Array<string | undefined>) {

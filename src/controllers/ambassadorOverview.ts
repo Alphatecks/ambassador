@@ -1,4 +1,8 @@
 import { apiRequest } from './apiClient.ts'
+import {
+  readAmbassadorSession,
+  saveAmbassadorSession,
+} from './ambassadorAuth.ts'
 
 export type OverviewTarget = {
   label: string
@@ -46,6 +50,7 @@ export type OverviewViewModel = {
     overallPercent: number
     targets: OverviewTarget[]
   }
+  referralCode: string
   referralLink: string
   referralNote: string
   funnel: Array<{
@@ -145,10 +150,152 @@ export const emptyOverview = (): OverviewViewModel => ({
       remaining: meta.goal,
     })),
   },
+  referralCode: '',
   referralLink: '',
   referralNote: 'One account, one ambassador. Self-referrals and duplicates are blocked.',
   funnel: [],
 })
+
+function buildReferralLink(codeOrUrl: string) {
+  const value = codeOrUrl.trim()
+  if (!value) return ''
+  if (/^https?:\/\//i.test(value)) return value
+  if (value.includes('senseifi.io/')) {
+    return value.startsWith('http') ? value : `https://${value.replace(/^\/+/, '')}`
+  }
+  const code = value.replace(/^@/, '').replace(/^\/+/, '')
+  return code ? `https://senseifi.io/r/${code}` : ''
+}
+
+function collectReferralCandidates(value: unknown, out: string[], depth = 0) {
+  if (depth > 6 || value == null) return
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    if (!trimmed) return
+    if (
+      /referral/i.test(trimmed) ||
+      /senseifi\.io\/r\//i.test(trimmed) ||
+      /^https?:\/\//i.test(trimmed)
+    ) {
+      out.push(trimmed)
+    }
+    return
+  }
+  if (Array.isArray(value)) {
+    for (const item of value) collectReferralCandidates(item, out, depth + 1)
+    return
+  }
+  if (typeof value !== 'object') return
+
+  const record = value as Record<string, unknown>
+  for (const [key, nested] of Object.entries(record)) {
+    const keyLower = key.toLowerCase()
+    if (
+      keyLower.includes('referral') ||
+      keyLower === 'code' ||
+      keyLower === 'link' ||
+      keyLower === 'url' ||
+      keyLower === 'share_url' ||
+      keyLower === 'shareurl'
+    ) {
+      if (typeof nested === 'string' && nested.trim()) out.push(nested.trim())
+      else collectReferralCandidates(nested, out, depth + 1)
+    } else {
+      collectReferralCandidates(nested, out, depth + 1)
+    }
+  }
+}
+
+export function extractReferralFromOverview(raw: unknown): {
+  referralCode: string
+  referralLink: string
+} {
+  const root = asRecord(raw) ?? {}
+  const data = asRecord(root.overview) ?? asRecord(root.data) ?? root
+  const ambassador =
+    asRecord(data.ambassador) ??
+    asRecord(data.profile) ??
+    asRecord(data.user) ??
+    {}
+  const referral =
+    asRecord(data.referral) ??
+    asRecord(data.referrals) ??
+    asRecord(ambassador.referral) ??
+    {}
+
+  const directLink = str(
+    data.referral_link ??
+      data.referralLink ??
+      data.share_url ??
+      data.shareUrl ??
+      data.link ??
+      referral.link ??
+      referral.url ??
+      referral.referral_link ??
+      referral.referralLink,
+  )
+  const directCode = str(
+    data.referral_code ??
+      data.referralCode ??
+      data.code ??
+      ambassador.referral_code ??
+      ambassador.referralCode ??
+      ambassador.code ??
+      referral.code ??
+      referral.referral_code ??
+      referral.referralCode,
+  )
+
+  if (directLink) {
+    return {
+      referralCode: directCode || directLink.replace(/^.*\/r\//, '').replace(/\/$/, ''),
+      referralLink: buildReferralLink(directLink),
+    }
+  }
+
+  if (directCode) {
+    return {
+      referralCode: directCode.replace(/^@/, ''),
+      referralLink: buildReferralLink(directCode),
+    }
+  }
+
+  const candidates: string[] = []
+  collectReferralCandidates(raw, candidates)
+  const linkCandidate = candidates.find(
+    value => /senseifi\.io\/r\//i.test(value) || /^https?:\/\//i.test(value),
+  )
+  if (linkCandidate) {
+    return {
+      referralCode: linkCandidate.replace(/^.*\/r\//, '').replace(/\/$/, ''),
+      referralLink: buildReferralLink(linkCandidate),
+    }
+  }
+
+  const codeCandidate = candidates.find(
+    value => !value.includes(' ') && value.length >= 3 && value.length <= 64,
+  )
+  if (codeCandidate) {
+    const code = codeCandidate.replace(/^@/, '')
+    return { referralCode: code, referralLink: buildReferralLink(code) }
+  }
+
+  const session = readAmbassadorSession()
+  if (session?.referralLink) {
+    return {
+      referralCode: session.referralCode || '',
+      referralLink: session.referralLink,
+    }
+  }
+  if (session?.username) {
+    return {
+      referralCode: session.username,
+      referralLink: buildReferralLink(session.username),
+    }
+  }
+
+  return { referralCode: '', referralLink: '' }
+}
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === 'object' && !Array.isArray(value)
@@ -340,20 +487,7 @@ export function normalizeOverview(raw: unknown): OverviewViewModel {
     targets.reduce((sum, target) => sum + target.percent, 0) / Math.max(targets.length, 1),
   )
 
-  const referralCode = str(
-    data.referral_code ??
-      data.referralCode ??
-      ambassador.referral_code ??
-      ambassador.referralCode ??
-      ambassador.code,
-  )
-  const referralLink = str(
-    data.referral_link ??
-      data.referralLink ??
-      data.share_url ??
-      data.shareUrl ??
-      (referralCode ? `https://senseifi.io/r/${referralCode}` : ''),
-  )
+  const { referralCode, referralLink } = extractReferralFromOverview(raw)
 
   const earningLinesRaw = Array.isArray(earnings.lines)
     ? earnings.lines
@@ -448,9 +582,13 @@ export function normalizeOverview(raw: unknown): OverviewViewModel {
       overallPercent,
       targets,
     },
+    referralCode,
     referralLink,
     referralNote: str(
-      data.referral_note ?? data.referralNote,
+      data.referral_note ??
+        data.referralNote ??
+        asRecord(data.referral)?.note ??
+        asRecord(data.referrals)?.note,
       'One account, one ambassador. Self-referrals and duplicates are blocked.',
     ),
     funnel: buildFunnel(targets),
@@ -463,5 +601,29 @@ export async function fetchAmbassadorOverview() {
     method: 'GET',
     auth: true,
   })
-  return normalizeOverview(result.data)
+  const overview = normalizeOverview(result.data)
+
+  if (overview.referralLink || overview.referralCode) {
+    const existing = readAmbassadorSession()
+    if (existing?.token) {
+      saveAmbassadorSession({
+        ...existing,
+        referralCode: overview.referralCode || existing.referralCode,
+        referralLink: overview.referralLink || existing.referralLink,
+      })
+    }
+  }
+
+  return overview
+}
+
+export async function fetchAmbassadorReferralLink() {
+  const overview = await fetchAmbassadorOverview()
+  if (!overview.referralLink) {
+    throw new Error('No referral link was returned for this ambassador.')
+  }
+  return {
+    referralCode: overview.referralCode,
+    referralLink: overview.referralLink,
+  }
 }
