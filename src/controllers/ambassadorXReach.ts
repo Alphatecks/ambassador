@@ -1,4 +1,5 @@
 import {
+  formatCount,
   type XPost,
   type XPostFilter,
   type XPostStatus,
@@ -7,7 +8,6 @@ import {
   xReach as xReachCopy,
 } from '../models/xReach.ts'
 import { apiRequest } from './apiClient.ts'
-import { formatCount } from '../models/xReach.ts'
 
 export type XReachPageData = {
   title: string
