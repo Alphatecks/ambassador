@@ -59,3 +59,10 @@ export {
   type FetchReferralsInput,
   type ReferralsPageData,
 } from './ambassadorReferrals.ts'
+export {
+  emptyRewardsPage,
+  fetchAmbassadorRewards,
+  normalizeRewards,
+  type FetchRewardsInput,
+  type RewardsPageData,
+} from './ambassadorRewards.ts'

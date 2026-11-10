@@ -1,5 +1,11 @@
-import { useMemo, useState } from 'react'
-import { rewardEntries, rewards, type RewardFilter } from '../../models/rewards.ts'
+import { useEffect, useState } from 'react'
+import {
+  emptyRewardsPage,
+  fetchAmbassadorRewards,
+  type RewardsPageData,
+} from '../../controllers/ambassadorRewards.ts'
+import { getSessionToken } from '../../controllers/apiClient.ts'
+import { type RewardFilter } from '../../models/rewards.ts'
 import {
   defaultXProfile,
   useAmbassador,
@@ -9,24 +15,76 @@ import './RewardsPage.css'
 export function RewardsPage() {
   const { xProfile } = useAmbassador()
   const profile = xProfile ?? defaultXProfile
+  const [data, setData] = useState<RewardsPageData>(() => emptyRewardsPage())
   const [filter, setFilter] = useState<RewardFilter>('all')
+  const [page, setPage] = useState(1)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
-  const visible = useMemo(() => {
-    if (filter === 'all') return rewardEntries
-    return rewardEntries.filter(entry => entry.status === filter)
-  }, [filter])
+  useEffect(() => {
+    let active = true
+
+    async function load() {
+      if (!getSessionToken()) {
+        if (!active) return
+        setData(emptyRewardsPage())
+        setError('Sign in again to load the reward ledger.')
+        setLoading(false)
+        return
+      }
+
+      setLoading(true)
+      try {
+        const next = await fetchAmbassadorRewards({ filter, page })
+        if (!active) return
+        setData(next)
+        setError('')
+        if (next.page !== page) setPage(next.page)
+      } catch (err) {
+        if (!active) return
+        setData(current => ({
+          ...emptyRewardsPage(),
+          filters: current.filters,
+          rules: current.rules,
+          example: current.example,
+        }))
+        setError(
+          err instanceof Error ? err.message : 'Could not load reward ledger.',
+        )
+      } finally {
+        if (active) setLoading(false)
+      }
+    }
+
+    void load()
+    return () => {
+      active = false
+    }
+  }, [filter, page])
+
+  function chooseFilter(next: RewardFilter) {
+    setFilter(next)
+    setPage(1)
+  }
+
+  const emptyMessage =
+    filter === 'pending'
+      ? 'No pending rewards.'
+      : filter === 'approved'
+        ? 'No approved rewards yet.'
+        : 'No rewards yet.'
 
   return (
     <main className="rewards">
       <header className="rewards-header">
         <div>
-          <h1>{rewards.title}</h1>
-          <p>{rewards.subtitle}</p>
+          <h1>{data.title}</h1>
+          <p>{data.subtitle}</p>
         </div>
         <div className="rewards-profile">
           <div>
             <strong>@{profile.username}</strong>
-            <span>{rewards.ambassador.level}</span>
+            <span>{data.ambassadorLevel}</span>
           </div>
           <img
             className="rewards-avatar"
@@ -38,24 +96,39 @@ export function RewardsPage() {
 
       <div className="rewards-layout">
         <article className="rewards-card">
-          <div className="rewards-filters" role="tablist" aria-label="Reward status">
-            {rewards.filters.map(item => (
+          <div
+            className="rewards-filters"
+            role="tablist"
+            aria-label="Reward status"
+          >
+            {data.filters.map(item => (
               <button
                 key={item.id}
                 type="button"
                 role="tab"
                 aria-selected={filter === item.id}
                 className={filter === item.id ? 'is-active' : ''}
-                onClick={() => setFilter(item.id)}
+                onClick={() => chooseFilter(item.id)}
               >
                 {item.label}
               </button>
             ))}
           </div>
 
-          {visible.length === 0 ? (
-            <p className="rewards-empty">No approved rewards yet.</p>
-          ) : (
+          {error ? (
+            <p className="rewards-status-msg is-error" role="alert">
+              {error}
+            </p>
+          ) : null}
+          {loading ? (
+            <p className="rewards-status-msg">Loading rewards…</p>
+          ) : null}
+
+          {!loading && !error && data.entries.length === 0 ? (
+            <p className="rewards-empty">{emptyMessage}</p>
+          ) : null}
+
+          {!loading && data.entries.length > 0 ? (
             <div className="rewards-table-scroll">
               <table className="rewards-table">
                 <thead>
@@ -69,7 +142,7 @@ export function RewardsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {visible.map(entry => (
+                  {data.entries.map(entry => (
                     <tr key={entry.id}>
                       <td data-label="Date">{entry.date}</td>
                       <td data-label="Event">{entry.event}</td>
@@ -86,13 +159,36 @@ export function RewardsPage() {
                 </tbody>
               </table>
             </div>
-          )}
+          ) : null}
+
+          {data.totalPages > 1 ? (
+            <div
+              className="rewards-pager"
+              role="navigation"
+              aria-label="Reward pages"
+            >
+              {Array.from({ length: data.totalPages }, (_, index) => {
+                const number = index + 1
+                return (
+                  <button
+                    key={number}
+                    type="button"
+                    className={number === data.page ? 'is-active' : ''}
+                    aria-current={number === data.page ? 'page' : undefined}
+                    onClick={() => setPage(number)}
+                  >
+                    {number}
+                  </button>
+                )
+              })}
+            </div>
+          ) : null}
         </article>
 
         <article className="rewards-card rewards-rules">
           <h2>Qualification rules</h2>
           <ul>
-            {rewards.rules.map(rule => (
+            {data.rules.map(rule => (
               <li key={rule.title}>
                 <div>
                   <strong>{rule.title}</strong>
@@ -102,7 +198,7 @@ export function RewardsPage() {
               </li>
             ))}
           </ul>
-          <p className="rewards-example">{rewards.example}</p>
+          <p className="rewards-example">{data.example}</p>
         </article>
       </div>
     </main>

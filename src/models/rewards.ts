@@ -12,15 +12,11 @@ export type RewardEntry = {
   note: string
 }
 
-export const rewardEntries: RewardEntry[] = Array.from({ length: 7 }, (_, index) => ({
-  id: `reward-${index + 1}`,
-  date: 'Today',
-  event: 'First paid subscription',
-  user: 'usr_••41',
-  amount: '+$5.00',
-  status: 'pending',
-  note: 'Held 30 days. Releases 16 Nov',
-}))
+export type RewardRule = {
+  title: string
+  value: string
+  detail: string
+}
 
 export const rewards = {
   title: 'Reward Ledger',
@@ -58,7 +54,7 @@ export const rewards = {
       detail:
         'Of collected renewal revenue, first 3 renewals, capped at $5 additional per customer.',
     },
-  ],
+  ] satisfies RewardRule[],
   example:
     'Example: $0.20 signup + $0.60 activation = $0.80. Adding the $5.00 first subscription = $5.80 before renewals.',
 }
