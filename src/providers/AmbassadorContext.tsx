@@ -27,7 +27,7 @@ type AmbassadorContextValue = {
   xProfile: XProfile | null
   wallet: WalletAccount | null
   connectX: (profile?: Partial<XProfile>) => void
-  connectWallet: () => void
+  connectWallet: (account?: Partial<WalletAccount>) => void
   disconnectWallet: () => void
   clearSession: () => void
 }
@@ -88,8 +88,11 @@ export function AmbassadorProvider({ children }: { children: ReactNode }) {
           avatarUrl: next.avatarUrl,
         })
       },
-      connectWallet() {
-        setWallet(defaultWallet)
+      connectWallet(account) {
+        setWallet({
+          address: account?.address?.trim() || defaultWallet.address,
+          label: account?.label?.trim() || defaultWallet.label,
+        })
       },
       disconnectWallet() {
         setWallet(null)

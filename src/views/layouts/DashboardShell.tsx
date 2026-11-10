@@ -7,7 +7,12 @@ import {
   useSearchParams,
 } from 'react-router-dom'
 import logo from '../../../assets/images/logo.png'
-import { withdraw } from '../../models/withdraw.ts'
+import { getSessionToken } from '../../controllers/apiClient.ts'
+import {
+  connectAmbassadorWallet,
+  fetchAmbassadorWithdraw,
+  requestBrowserWalletAddress,
+} from '../../controllers/ambassadorWithdraw.ts'
 import {
   shortenAddress,
   useAmbassador,
@@ -16,8 +21,11 @@ import { useToast } from '../../providers/ToastContext.tsx'
 import { QualificationModal } from '../components/QualificationModal.tsx'
 import './DashboardShell.css'
 
-function dollars(amount: number) {
-  return amount.toLocaleString('en-US', {
+function dollars(amount: string | number) {
+  const value =
+    typeof amount === 'number' ? amount : Number(String(amount).replace(/[$,]/g, ''))
+  const safe = Number.isFinite(value) ? value : 0
+  return safe.toLocaleString('en-US', {
     style: 'currency',
     currency: 'USD',
     minimumFractionDigits: 2,
@@ -34,12 +42,45 @@ export function DashboardShell() {
   const { showToast } = useToast()
   const [menuOpen, setMenuOpen] = useState(false)
   const [qualificationOpen, setQualificationOpen] = useState(false)
+  const [availableBalance, setAvailableBalance] = useState('0.00')
+  const [connectingWallet, setConnectingWallet] = useState(false)
   const location = useLocation()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
 
   useEffect(() => {
     setMenuOpen(false)
+  }, [location.pathname])
+
+  useEffect(() => {
+    let active = true
+
+    async function loadBalance() {
+      if (!getSessionToken()) {
+        if (active) setAvailableBalance('0.00')
+        return
+      }
+      try {
+        const data = await fetchAmbassadorWithdraw({
+          filter: 'all',
+          page: 1,
+          perPage: 1,
+        })
+        if (!active) return
+        setAvailableBalance(data.available)
+        if (data.wallet.connected && data.wallet.address && !wallet) {
+          connectWallet({ address: data.wallet.address })
+        }
+      } catch {
+        if (active) setAvailableBalance('0.00')
+      }
+    }
+
+    void loadBalance()
+    return () => {
+      active = false
+    }
+    // Refresh when route changes (e.g. after a payout on /withdraw).
   }, [location.pathname])
 
   useEffect(() => {
@@ -76,6 +117,25 @@ export function DashboardShell() {
     setMenuOpen(false)
     clearSession()
     navigate('/sign-in', { replace: true })
+  }
+
+  async function onConnectWallet() {
+    if (connectingWallet) return
+    setConnectingWallet(true)
+    try {
+      const address = await requestBrowserWalletAddress()
+      const connected = await connectAmbassadorWallet(address)
+      connectWallet({ address: connected.address })
+      showToast({ message: 'Wallet connected.', tone: 'success' })
+    } catch (err) {
+      showToast({
+        message:
+          err instanceof Error ? err.message : 'Could not connect wallet.',
+        tone: 'error',
+      })
+    } finally {
+      setConnectingWallet(false)
+    }
   }
 
   return (
@@ -167,7 +227,7 @@ export function DashboardShell() {
         <div className="sidebar-footer">
           <NavLink to="/withdraw" className="sidebar-balance" onClick={() => setMenuOpen(false)}>
             <span className="sidebar-wallet-label">Available balance</span>
-            <span className="sidebar-balance-value">{dollars(withdraw.available)}</span>
+            <span className="sidebar-balance-value">{dollars(availableBalance)}</span>
           </NavLink>
           {wallet ? (
             <button
@@ -185,9 +245,10 @@ export function DashboardShell() {
             <button
               type="button"
               className="sidebar-wallet"
-              onClick={connectWallet}
+              onClick={() => void onConnectWallet()}
+              disabled={connectingWallet}
             >
-              Connect wallet
+              {connectingWallet ? 'Connecting…' : 'Connect wallet'}
             </button>
           )}
           <button type="button" className="sidebar-logout" onClick={logOut}>
