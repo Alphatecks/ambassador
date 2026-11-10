@@ -126,6 +126,23 @@ export function WithdrawPage() {
     event.preventDefault()
     if (!data.wallet.connected || submitting) return
 
+    const requested = Number(String(amount).replace(/[$,]/g, ''))
+    const available = Number(data.available)
+    const minimum = Number(data.minAmount)
+
+    if (!Number.isFinite(requested) || requested <= 0) {
+      setFormError('Enter a valid payout amount.')
+      return
+    }
+    if (Number.isFinite(minimum) && requested < minimum) {
+      setFormError(`Minimum payout is ${dollars(data.minAmount)}.`)
+      return
+    }
+    if (Number.isFinite(available) && requested > available) {
+      setFormError('Amount exceeds your available balance.')
+      return
+    }
+
     setFormError('')
     setSubmitting(true)
     try {
@@ -168,6 +185,12 @@ export function WithdrawPage() {
 
   const availableNumber = Number(data.available)
   const minNumber = Number(data.minAmount)
+  const canWithdraw =
+    Number.isFinite(availableNumber) &&
+    Number.isFinite(minNumber) &&
+    availableNumber >= minNumber
+  const amountMin = canWithdraw ? minNumber : undefined
+  const amountMax = canWithdraw ? availableNumber : undefined
 
   if (loading) {
     return (
@@ -263,14 +286,14 @@ export function WithdrawPage() {
                   <input
                     id="withdraw-amount"
                     type="number"
-                    min={Number.isFinite(minNumber) ? minNumber : 20}
-                    max={Number.isFinite(availableNumber) ? availableNumber : undefined}
+                    min={amountMin}
+                    max={amountMax}
                     step="0.01"
                     placeholder={`Min ${dollars(data.minAmount)}`}
                     value={amount}
                     onChange={event => setAmount(event.target.value)}
                     required
-                    disabled={submitting}
+                    disabled={submitting || !canWithdraw}
                   />
                 </label>
 
@@ -282,6 +305,14 @@ export function WithdrawPage() {
                   </strong>
                 </div>
 
+                {!canWithdraw ? (
+                  <p className="withdraw-status-msg" role="status">
+                    You need at least {dollars(data.minAmount)} available to
+                    request a payout. Current available:{' '}
+                    {dollars(data.available)}.
+                  </p>
+                ) : null}
+
                 {formError ? (
                   <p className="withdraw-status-msg is-error" role="alert">
                     {formError}
@@ -292,14 +323,14 @@ export function WithdrawPage() {
                   <button
                     type="submit"
                     className="is-primary"
-                    disabled={submitting || availableNumber <= 0}
+                    disabled={submitting || !canWithdraw}
                   >
                     {submitted ? 'Requested' : submitting ? 'Requesting…' : 'Withdraw'}
                   </button>
                   <button
                     type="button"
                     onClick={() => setAmount(data.available)}
-                    disabled={submitting || availableNumber <= 0}
+                    disabled={submitting || !canWithdraw}
                   >
                     Use max
                   </button>
