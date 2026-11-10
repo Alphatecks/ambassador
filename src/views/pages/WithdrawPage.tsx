@@ -185,12 +185,14 @@ export function WithdrawPage() {
 
   const availableNumber = Number(data.available)
   const minNumber = Number(data.minAmount)
-  const canWithdraw =
-    Number.isFinite(availableNumber) &&
+  const hasAvailable =
+    Number.isFinite(availableNumber) && availableNumber > 0
+  const meetsMinimum =
+    hasAvailable &&
     Number.isFinite(minNumber) &&
     availableNumber >= minNumber
-  const amountMin = canWithdraw ? minNumber : undefined
-  const amountMax = canWithdraw ? availableNumber : undefined
+  // Only set HTML max when it won't conflict with the $20 minimum.
+  const amountMax = meetsMinimum ? availableNumber : undefined
 
   if (loading) {
     return (
@@ -286,14 +288,17 @@ export function WithdrawPage() {
                   <input
                     id="withdraw-amount"
                     type="number"
-                    min={amountMin}
+                    inputMode="decimal"
                     max={amountMax}
                     step="0.01"
                     placeholder={`Min ${dollars(data.minAmount)}`}
                     value={amount}
-                    onChange={event => setAmount(event.target.value)}
+                    onChange={event => {
+                      setFormError('')
+                      setAmount(event.target.value)
+                    }}
                     required
-                    disabled={submitting || !canWithdraw}
+                    disabled={submitting}
                   />
                 </label>
 
@@ -305,7 +310,7 @@ export function WithdrawPage() {
                   </strong>
                 </div>
 
-                {!canWithdraw ? (
+                {!meetsMinimum ? (
                   <p className="withdraw-status-msg" role="status">
                     You need at least {dollars(data.minAmount)} available to
                     request a payout. Current available:{' '}
@@ -323,14 +328,21 @@ export function WithdrawPage() {
                   <button
                     type="submit"
                     className="is-primary"
-                    disabled={submitting || !canWithdraw}
+                    disabled={submitting || !hasAvailable}
                   >
                     {submitted ? 'Requested' : submitting ? 'Requesting…' : 'Withdraw'}
                   </button>
                   <button
                     type="button"
-                    onClick={() => setAmount(data.available)}
-                    disabled={submitting || !canWithdraw}
+                    onClick={() => {
+                      setFormError('')
+                      setAmount(
+                        Number.isFinite(availableNumber)
+                          ? availableNumber.toFixed(2)
+                          : data.available,
+                      )
+                    }}
+                    disabled={submitting || !hasAvailable}
                   >
                     Use max
                   </button>
