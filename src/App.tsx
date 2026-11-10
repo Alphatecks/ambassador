@@ -7,7 +7,6 @@ import { LoginPage } from './views/pages/LoginPage.tsx'
 import { OAuthCallbackPage } from './views/pages/OAuthCallbackPage.tsx'
 import { OAuthDevHandoffPage } from './views/pages/OAuthDevHandoffPage.tsx'
 import { SignupPage } from './views/pages/SignupPage.tsx'
-import { XReachPage } from './views/pages/XReachPage.tsx'
 
 const OverviewPage = lazy(() =>
   import('./views/pages/OverviewPage.tsx').then(module => ({
@@ -22,6 +21,11 @@ const ReferralsPage = lazy(() =>
 const MarketingPage = lazy(() =>
   import('./views/pages/MarketingPage.tsx').then(module => ({
     default: module.MarketingPage,
+  })),
+)
+const XReachPage = lazy(() =>
+  import('./views/pages/XReachPage.tsx').then(module => ({
+    default: module.XReachPage,
   })),
 )
 const RewardsPage = lazy(() =>
@@ -77,7 +81,14 @@ export default function App() {
               </Suspense>
             }
           />
-          <Route path="/x-reach" element={<XReachPage />} />
+          <Route
+            path="/x-reach"
+            element={
+              <Suspense fallback={<ApiPageFallback />}>
+                <XReachPage />
+              </Suspense>
+            }
+          />
           <Route
             path="/rewards"
             element={

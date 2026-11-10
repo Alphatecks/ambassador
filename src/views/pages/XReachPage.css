@@ -39,6 +39,62 @@
   margin-top: 6px;
 }
 
+.xreach-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.xreach-header-actions > button {
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 8px;
+  background: #2a2a2a;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.xreach-header-actions > button.is-primary {
+  background: #0026ff;
+}
+
+.xreach-header-actions > button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.xreach-status-msg {
+  margin: 8px 0 0;
+  color: #8d8d8d;
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.xreach-status-msg.is-error {
+  color: #ff8f8f;
+}
+
+.xreach-pager {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.xreach-pager button {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: #2a2a2a;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.xreach-pager button.is-active {
+  background: #0026ff;
+}
+
 .xreach-profile {
   display: flex;
   align-items: center;

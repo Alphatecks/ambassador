@@ -77,3 +77,12 @@ export {
   type WithdrawPageData,
   type WithdrawWalletInfo,
 } from './ambassadorWithdraw.ts'
+export {
+  emptyXReachPage,
+  fetchAmbassadorXReach,
+  formatCount,
+  normalizeXReach,
+  syncAmbassadorXReach,
+  type FetchXReachInput,
+  type XReachPageData,
+} from './ambassadorXReach.ts'
