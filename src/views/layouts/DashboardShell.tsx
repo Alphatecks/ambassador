@@ -18,6 +18,7 @@ import {
   useAmbassador,
 } from '../../providers/AmbassadorContext.tsx'
 import { useToast } from '../../providers/ToastContext.tsx'
+import { LazyPlaceholder } from '../components/LazyPlaceholder.tsx'
 import { QualificationModal } from '../components/QualificationModal.tsx'
 import './DashboardShell.css'
 
@@ -43,6 +44,7 @@ export function DashboardShell() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [qualificationOpen, setQualificationOpen] = useState(false)
   const [availableBalance, setAvailableBalance] = useState('0.00')
+  const [balanceLoading, setBalanceLoading] = useState(true)
   const [connectingWallet, setConnectingWallet] = useState(false)
   const location = useLocation()
   const navigate = useNavigate()
@@ -57,9 +59,12 @@ export function DashboardShell() {
 
     async function loadBalance() {
       if (!getSessionToken()) {
-        if (active) setAvailableBalance('0.00')
+        if (!active) return
+        setAvailableBalance('0.00')
+        setBalanceLoading(false)
         return
       }
+      setBalanceLoading(true)
       try {
         const data = await fetchAmbassadorWithdraw({
           filter: 'all',
@@ -73,6 +78,8 @@ export function DashboardShell() {
         }
       } catch {
         if (active) setAvailableBalance('0.00')
+      } finally {
+        if (active) setBalanceLoading(false)
       }
     }
 
@@ -227,7 +234,17 @@ export function DashboardShell() {
         <div className="sidebar-footer">
           <NavLink to="/withdraw" className="sidebar-balance" onClick={() => setMenuOpen(false)}>
             <span className="sidebar-wallet-label">Available balance</span>
-            <span className="sidebar-balance-value">{dollars(availableBalance)}</span>
+            {balanceLoading ? (
+              <LazyPlaceholder
+                variant="line"
+                label="Loading balance…"
+                className="sidebar-balance-loader"
+              />
+            ) : (
+              <span className="sidebar-balance-value">
+                {dollars(availableBalance)}
+              </span>
+            )}
           </NavLink>
           {wallet ? (
             <button

@@ -316,6 +316,10 @@
   margin: 8px 0 12px;
 }
 
+.referrals-timeline-loader {
+  margin-top: 14px;
+}
+
 .referrals-status-msg {
   margin: 8px 0 12px;
   color: #8d8d8d;

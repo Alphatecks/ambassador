@@ -17,6 +17,7 @@ import {
   defaultXProfile,
   useAmbassador,
 } from '../../providers/AmbassadorContext.tsx'
+import { LazyPlaceholder } from '../components/LazyPlaceholder.tsx'
 import './ReferralsPage.css'
 
 export function ReferralsPage() {
@@ -159,6 +160,31 @@ export function ReferralsPage() {
         ? 'No activated referrals yet.'
         : 'No referrals yet.'
 
+  if (loading) {
+    return (
+      <main className="referrals">
+        <header className="referrals-header">
+          <div>
+            <h1>{data.title}</h1>
+            <p>{data.subtitle}</p>
+          </div>
+          <div className="referrals-profile">
+            <div>
+              <strong>@{profile.username}</strong>
+              <span>{data.ambassadorLevel}</span>
+            </div>
+            <img
+              className="referrals-avatar"
+              src={profile.avatarUrl}
+              alt={`${profile.displayName} on X`}
+            />
+          </div>
+        </header>
+        <LazyPlaceholder variant="page" label="Loading referrals…" />
+      </main>
+    )
+  }
+
   return (
     <main className="referrals">
       <header className="referrals-header">
@@ -184,8 +210,7 @@ export function ReferralsPage() {
           <article className="referrals-card referrals-link-card">
             <h2>My referral link</h2>
             <p className="referrals-link">
-              {data.referralLink ||
-                (loading ? 'Loading referral link…' : 'No referral link yet')}
+              {data.referralLink || 'No referral link yet'}
             </p>
             <div className="referrals-actions">
               <button
@@ -232,15 +257,12 @@ export function ReferralsPage() {
                 {listError}
               </p>
             ) : null}
-            {loading ? (
-              <p className="referrals-status-msg">Loading referrals…</p>
-            ) : null}
 
-            {!loading && !listError && data.users.length === 0 ? (
+            {!listError && data.users.length === 0 ? (
               <p className="referrals-empty">{emptyMessage}</p>
             ) : null}
 
-            {!loading && data.users.length > 0 ? (
+            {data.users.length > 0 ? (
               <div className="referrals-table-scroll">
                 <table className="referrals-table">
                   <thead>
@@ -351,7 +373,11 @@ export function ReferralsPage() {
               <>
                 <p className="referrals-user-id">{selected.label}</p>
                 {timelineLoading ? (
-                  <p className="referrals-status-msg">Loading events…</p>
+                  <LazyPlaceholder
+                    variant="side"
+                    label="Loading events…"
+                    className="referrals-timeline-loader"
+                  />
                 ) : null}
                 {timelineError ? (
                   <p className="referrals-status-msg is-error" role="alert">

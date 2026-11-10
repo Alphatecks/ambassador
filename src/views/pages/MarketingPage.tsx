@@ -12,6 +12,7 @@ import {
   defaultXProfile,
   useAmbassador,
 } from '../../providers/AmbassadorContext.tsx'
+import { LazyPlaceholder } from '../components/LazyPlaceholder.tsx'
 import './MarketingPage.css'
 
 const emptyMarketing = (): MarketingPageData => ({
@@ -179,13 +180,33 @@ export function MarketingPage() {
     )
   }
 
+  if (loading) {
+    return (
+      <main className="marketing">
+        <header className="marketing-header">
+          <div>
+            <h1>{marketing.title}</h1>
+            <p>{marketing.subtitle}</p>
+          </div>
+          <div className="marketing-profile">
+            <div>
+              <strong>@{profile.username}</strong>
+              <span>Ambassador</span>
+            </div>
+            <img className="marketing-avatar" src={profile.avatarUrl} alt="" />
+          </div>
+        </header>
+        <LazyPlaceholder variant="cards" label="Loading creatives…" rows={3} />
+      </main>
+    )
+  }
+
   return (
     <main className="marketing">
       <header className="marketing-header">
         <div>
           <h1>{marketing.title}</h1>
           <p>{marketing.subtitle}</p>
-          {loading ? <p className="marketing-status">Loading creatives…</p> : null}
           {error ? (
             <p className="marketing-status is-error" role="alert">
               {error}{' '}
@@ -202,7 +223,7 @@ export function MarketingPage() {
         </div>
       </header>
 
-      {!loading && !error && marketing.packs.length === 0 ? (
+      {!error && marketing.packs.length === 0 ? (
         <p className="marketing-empty">No marketing creatives are available yet.</p>
       ) : null}
 

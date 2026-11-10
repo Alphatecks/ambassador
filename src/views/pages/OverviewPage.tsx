@@ -16,6 +16,7 @@ import {
   useAmbassador,
 } from '../../providers/AmbassadorContext.tsx'
 import { useToast } from '../../providers/ToastContext.tsx'
+import { LazyPlaceholder } from '../components/LazyPlaceholder.tsx'
 import './OverviewPage.css'
 
 function dollars(amount: number, digits = 2) {
@@ -132,13 +133,20 @@ export function OverviewPage() {
     await copyLink()
   }
 
+  if (loading) {
+    return (
+      <main className="overview">
+        <LazyPlaceholder variant="page" label="Loading overview…" />
+      </main>
+    )
+  }
+
   return (
     <main className="overview">
       <header className="overview-header">
         <div>
           <h1>{overview.title}</h1>
           <p>{overview.subtitle}</p>
-          {loading ? <p className="overview-status">Loading live overview…</p> : null}
           {error ? (
             <p className="overview-status is-error" role="alert">
               {error}{' '}
@@ -223,7 +231,7 @@ export function OverviewPage() {
       <section className="overview-path panel">
         <div className="panel-heading">
           <h2>Rank path</h2>
-          <span className="status-pill">{loading ? 'Loading' : error ? 'Offline' : 'Live'}</span>
+          <span className="status-pill">{error ? 'Offline' : 'Live'}</span>
         </div>
         <div className="rank-path">
           {overview.step.tiers.map((tier, index) => (
@@ -292,7 +300,7 @@ export function OverviewPage() {
               aria-label="My referral link"
               value={referralLink}
               onChange={updateReferralLink}
-              placeholder={loading ? 'Loading…' : 'No referral link yet'}
+              placeholder="No referral link yet"
               readOnly={!referralLink}
             />
             <div className="referral-actions">

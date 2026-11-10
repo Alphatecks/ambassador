@@ -10,6 +10,7 @@ import {
   defaultXProfile,
   useAmbassador,
 } from '../../providers/AmbassadorContext.tsx'
+import { LazyPlaceholder } from '../components/LazyPlaceholder.tsx'
 import './RewardsPage.css'
 
 export function RewardsPage() {
@@ -74,6 +75,31 @@ export function RewardsPage() {
         ? 'No approved rewards yet.'
         : 'No rewards yet.'
 
+  if (loading) {
+    return (
+      <main className="rewards">
+        <header className="rewards-header">
+          <div>
+            <h1>{data.title}</h1>
+            <p>{data.subtitle}</p>
+          </div>
+          <div className="rewards-profile">
+            <div>
+              <strong>@{profile.username}</strong>
+              <span>{data.ambassadorLevel}</span>
+            </div>
+            <img
+              className="rewards-avatar"
+              src={profile.avatarUrl}
+              alt={`${profile.displayName} on X`}
+            />
+          </div>
+        </header>
+        <LazyPlaceholder variant="page" label="Loading rewards…" />
+      </main>
+    )
+  }
+
   return (
     <main className="rewards">
       <header className="rewards-header">
@@ -120,15 +146,12 @@ export function RewardsPage() {
               {error}
             </p>
           ) : null}
-          {loading ? (
-            <p className="rewards-status-msg">Loading rewards…</p>
-          ) : null}
 
-          {!loading && !error && data.entries.length === 0 ? (
+          {!error && data.entries.length === 0 ? (
             <p className="rewards-empty">{emptyMessage}</p>
           ) : null}
 
-          {!loading && data.entries.length > 0 ? (
+          {data.entries.length > 0 ? (
             <div className="rewards-table-scroll">
               <table className="rewards-table">
                 <thead>

@@ -14,6 +14,7 @@ import {
   shortenAddress,
   useAmbassador,
 } from '../../providers/AmbassadorContext.tsx'
+import { LazyPlaceholder } from '../components/LazyPlaceholder.tsx'
 import './WithdrawPage.css'
 
 function dollars(amount: string | number) {
@@ -167,6 +168,34 @@ export function WithdrawPage() {
 
   const availableNumber = Number(data.available)
   const minNumber = Number(data.minAmount)
+
+  if (loading) {
+    return (
+      <main className="withdraw">
+        <header className="withdraw-header">
+          <div>
+            <h1>{data.title}</h1>
+            <p>{data.subtitle}</p>
+          </div>
+          <div className="withdraw-profile">
+            <div>
+              <strong>@{profile.username}</strong>
+              <span>{data.ambassadorLevel}</span>
+            </div>
+            <img
+              className="withdraw-avatar"
+              src={profile.avatarUrl}
+              alt={`${profile.displayName} on X`}
+            />
+          </div>
+        </header>
+        <LazyPlaceholder variant="stats" label="Loading balances…" />
+        <div className="withdraw-layout" style={{ marginTop: 18 }}>
+          <LazyPlaceholder variant="page" label="Loading withdrawals…" />
+        </div>
+      </main>
+    )
+  }
 
   return (
     <main className="withdraw">
@@ -327,15 +356,12 @@ export function WithdrawPage() {
                 {error}
               </p>
             ) : null}
-            {loading ? (
-              <p className="withdraw-status-msg">Loading withdrawals…</p>
-            ) : null}
 
-            {!loading && !error && data.entries.length === 0 ? (
+            {!error && data.entries.length === 0 ? (
               <p className="withdraw-empty">{emptyMessage}</p>
             ) : null}
 
-            {!loading && data.entries.length > 0 ? (
+            {data.entries.length > 0 ? (
               <div className="withdraw-table-scroll">
                 <table className="withdraw-table">
                   <thead>

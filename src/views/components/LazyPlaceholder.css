@@ -1,0 +1,175 @@
+.lazy-placeholder {
+  width: 100%;
+}
+
+.lazy-bone {
+  display: block;
+  border-radius: 8px;
+  background: linear-gradient(
+    90deg,
+    #1a1a1a 0%,
+    #262626 42%,
+    #1a1a1a 84%
+  );
+  background-size: 200% 100%;
+  animation: lazy-shimmer 1.2s ease-in-out infinite;
+}
+
+.lazy-bone-xs {
+  width: 64px;
+  height: 10px;
+}
+
+.lazy-bone-sm {
+  width: 48%;
+  height: 12px;
+}
+
+.lazy-bone-md {
+  width: 72%;
+  height: 14px;
+}
+
+.lazy-bone-lg {
+  width: 88%;
+  height: 28px;
+}
+
+.lazy-bone-title {
+  width: min(240px, 55%);
+  height: 28px;
+  margin-bottom: 10px;
+}
+
+.lazy-bone-toolbar {
+  width: 100%;
+  height: 36px;
+}
+
+.lazy-bone-cell {
+  flex: 1;
+  height: 14px;
+}
+
+.lazy-bone-cell.is-short {
+  flex: 0.45;
+}
+
+.lazy-bone-media {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 12px;
+}
+
+.lazy-bone-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.lazy-bone-line {
+  width: 100%;
+  height: 18px;
+}
+
+.lazy-page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 24px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid #2a2a2a;
+}
+
+.lazy-page-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(240px, 0.85fr);
+  gap: 18px;
+}
+
+.lazy-page-main,
+.lazy-page-aside,
+.lazy-side,
+.lazy-table,
+.lazy-cards,
+.lazy-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.lazy-page-main,
+.lazy-page-aside {
+  gap: 18px;
+}
+
+.lazy-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px;
+  border: 1px solid #2a2a2a;
+  border-radius: 14px;
+  background: #111111;
+}
+
+.lazy-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.lazy-stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.lazy-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px;
+  border: 1px solid #2a2a2a;
+  border-radius: 14px;
+  background: #111111;
+}
+
+.lazy-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.lazy-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #2a2a2a;
+  border-radius: 14px;
+  background: #111111;
+}
+
+.lazy-placeholder.is-line {
+  max-width: 120px;
+}
+
+@keyframes lazy-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+@media (max-width: 980px) {
+  .lazy-page-body,
+  .lazy-stats,
+  .lazy-cards {
+    grid-template-columns: 1fr;
+  }
+}

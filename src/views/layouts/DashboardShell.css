@@ -26,6 +26,10 @@
   min-width: 0;
 }
 
+.dashboard-lazy {
+  padding: 28px 28px 40px;
+}
+
 .mobile-bar,
 .menu-backdrop {
   display: none;
@@ -182,6 +186,11 @@
 
 .dashboard.is-menu-open .menu-toggle-bars span:nth-child(3) {
   transform: translateY(-7px) rotate(-45deg);
+}
+
+.sidebar-balance-loader {
+  margin-top: 4px;
+  width: 88px;
 }
 
 .sr-only {
