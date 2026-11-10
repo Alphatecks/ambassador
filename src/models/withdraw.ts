@@ -11,49 +11,15 @@ export type WithdrawEntry = {
   note: string
 }
 
-export const withdrawEntries: WithdrawEntry[] = [
-  {
-    id: 'wd-1',
-    date: 'Today',
-    amount: '$120.00',
-    destination: '0xA1b2…5678',
-    status: 'pending',
-    note: 'Processing · ETA under 24h',
-  },
-  {
-    id: 'wd-2',
-    date: '4 Nov',
-    amount: '$85.50',
-    destination: '0xA1b2…5678',
-    status: 'sent',
-    note: 'Tx confirmed',
-  },
-  {
-    id: 'wd-3',
-    date: '28 Oct',
-    amount: '$40.00',
-    destination: '0xA1b2…5678',
-    status: 'sent',
-    note: 'Tx confirmed',
-  },
-  {
-    id: 'wd-4',
-    date: '12 Oct',
-    amount: '$25.00',
-    destination: '0xA1b2…5678',
-    status: 'failed',
-    note: 'Returned · wallet rejected',
-  },
-]
+export type WithdrawRule = {
+  title: string
+  value: string
+  detail: string
+}
 
 export const withdraw = {
   title: 'Withdraw',
   subtitle: 'Move available earnings to your connected wallet.',
-  available: 298.5,
-  pending: 120,
-  withdrawn: 125.5,
-  totalEarned: 544,
-  minAmount: 20,
   filters: [
     { id: 'all' as const, label: 'All' },
     { id: 'pending' as const, label: 'Pending' },
@@ -81,7 +47,7 @@ export const withdraw = {
       value: 'Up to 24h',
       detail: 'Pending withdrawals settle once the transfer is confirmed.',
     },
-  ],
+  ] satisfies WithdrawRule[],
   example:
     'Example: available $298.50. Request $100 to your connected wallet. The rest stays ready for the next payout.',
 }

@@ -66,3 +66,14 @@ export {
   type FetchRewardsInput,
   type RewardsPageData,
 } from './ambassadorRewards.ts'
+export {
+  connectAmbassadorWallet,
+  emptyWithdrawPage,
+  fetchAmbassadorWithdraw,
+  normalizeWithdraw,
+  requestAmbassadorWithdraw,
+  requestBrowserWalletAddress,
+  type FetchWithdrawInput,
+  type WithdrawPageData,
+  type WithdrawWalletInfo,
+} from './ambassadorWithdraw.ts'
