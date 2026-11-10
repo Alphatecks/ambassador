@@ -5,12 +5,17 @@ import {
   fetchAmbassadorOverview,
   type OverviewViewModel,
 } from '../../controllers/ambassadorOverview.ts'
+import {
+  connectAmbassadorWallet,
+  requestBrowserWalletAddress,
+} from '../../controllers/ambassadorWithdraw.ts'
 import { getSessionToken } from '../../controllers/apiClient.ts'
 import {
   defaultXProfile,
   shortenAddress,
   useAmbassador,
 } from '../../providers/AmbassadorContext.tsx'
+import { useToast } from '../../providers/ToastContext.tsx'
 import './OverviewPage.css'
 
 function dollars(amount: number, digits = 2) {
@@ -24,12 +29,33 @@ function dollars(amount: number, digits = 2) {
 
 export function OverviewPage() {
   const { xProfile, wallet, connectWallet, disconnectWallet } = useAmbassador()
+  const { showToast } = useToast()
   const profile = xProfile ?? defaultXProfile
   const [copied, setCopied] = useState(false)
   const [overview, setOverview] = useState<OverviewViewModel>(() => emptyOverview())
   const [referralLink, setReferralLink] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [connectingWallet, setConnectingWallet] = useState(false)
+
+  async function onConnectWallet() {
+    if (connectingWallet) return
+    setConnectingWallet(true)
+    try {
+      const address = await requestBrowserWalletAddress()
+      const connected = await connectAmbassadorWallet(address)
+      connectWallet({ address: connected.address })
+      showToast({ message: 'Wallet connected.', tone: 'success' })
+    } catch (err) {
+      showToast({
+        message:
+          err instanceof Error ? err.message : 'Could not connect wallet.',
+        tone: 'error',
+      })
+    } finally {
+      setConnectingWallet(false)
+    }
+  }
 
   useEffect(() => {
     let active = true
@@ -134,9 +160,10 @@ export function OverviewPage() {
           <button
             type="button"
             className="overview-wallet-btn"
-            onClick={connectWallet}
+            onClick={() => void onConnectWallet()}
+            disabled={connectingWallet}
           >
-            Connect wallet
+            {connectingWallet ? 'Connecting…' : 'Connect wallet'}
           </button>
         )}
       </header>
