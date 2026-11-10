@@ -204,7 +204,7 @@ export function DashboardShell() {
               isActive ? 'sidebar-link is-active' : 'sidebar-link'
             }
           >
-            Marketing
+            Marketing materials
           </NavLink>
           <NavLink
             to="/x-reach"

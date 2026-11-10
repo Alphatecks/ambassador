@@ -230,7 +230,7 @@ export function normalizeMarketing(raw: unknown): MarketingPageData {
   }
 
   return {
-    title: str(data.title, 'Marketing'),
+    title: str(data.title, 'Marketing materials'),
     subtitle: str(
       data.subtitle ?? data.description,
       'Daily creatives from admin. Download them and reshare on your platforms.',

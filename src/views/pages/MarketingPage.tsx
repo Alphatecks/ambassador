@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   downloadMarketingAsset,
@@ -15,13 +15,33 @@ import {
 import { LazyPlaceholder } from '../components/LazyPlaceholder.tsx'
 import './MarketingPage.css'
 
+const MARKETING_POLL_MS = 20_000
+
 const emptyMarketing = (): MarketingPageData => ({
-  title: 'Marketing',
+  title: 'Marketing materials',
   subtitle: 'Daily creatives from admin. Download them and reshare on your platforms.',
   todayNote: 'Admin refreshes this pack every day. Grab today’s assets before they rotate.',
   previousTitle: 'Previous days',
   packs: [],
 })
+
+function marketingFingerprint(data: MarketingPageData) {
+  return data.packs
+    .map(
+      pack =>
+        `${pack.id}:${pack.dateLabel}:${pack.assets
+          .map(asset => `${asset.id}:${asset.title}:${asset.caption}`)
+          .join(',')}`,
+    )
+    .join('|')
+}
+
+function withMarketingTitle(data: MarketingPageData): MarketingPageData {
+  return {
+    ...data,
+    title: 'Marketing materials',
+  }
+}
 
 export function MarketingPage() {
   const { xProfile } = useAmbassador()
@@ -32,60 +52,144 @@ export function MarketingPage() {
   const [previewUrls, setPreviewUrls] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const fingerprintRef = useRef('')
+  const previewUrlsRef = useRef<Record<string, string>>({})
+  const objectUrlsRef = useRef<string[]>([])
+
+  useEffect(() => {
+    previewUrlsRef.current = previewUrls
+  }, [previewUrls])
 
   useEffect(() => {
     let active = true
-    const objectUrls: string[] = []
+    let timer: number | null = null
 
-    async function load() {
+    function clearObjectUrls(urls: string[]) {
+      for (const url of urls) URL.revokeObjectURL(url)
+    }
+
+    async function loadPreviews(
+      data: MarketingPageData,
+      previous: Record<string, string>,
+    ) {
+      const nextPreviews: Record<string, string> = {}
+      const created: string[] = []
+      const keepIds = new Set(
+        data.packs.flatMap(pack => pack.assets.map(asset => asset.id)),
+      )
+
+      await Promise.all(
+        data.packs.flatMap(pack =>
+          pack.assets.map(async asset => {
+            const existing = previous[asset.id]
+            if (existing) {
+              nextPreviews[asset.id] = existing
+              return
+            }
+            try {
+              const preview = await fetchMarketingAssetPreview(asset)
+              if (!active) return
+              if (preview?.startsWith('blob:')) created.push(preview)
+              if (preview) nextPreviews[asset.id] = preview
+            } catch {
+              if (asset.preview) nextPreviews[asset.id] = asset.preview
+            }
+          }),
+        ),
+      )
+
+      const revoked: string[] = []
+      for (const [id, url] of Object.entries(previous)) {
+        if (!keepIds.has(id) && url.startsWith('blob:')) {
+          revoked.push(url)
+        }
+      }
+      clearObjectUrls(revoked)
+      objectUrlsRef.current = objectUrlsRef.current
+        .filter(url => !revoked.includes(url))
+        .concat(created)
+
+      return nextPreviews
+    }
+
+    async function load(options?: { silent?: boolean }) {
+      const silent = Boolean(options?.silent)
+
       if (!getSessionToken()) {
         if (!active) return
+        fingerprintRef.current = ''
         setMarketing(emptyMarketing())
+        setPreviewUrls({})
         setError('Sign in again to load marketing creatives.')
         setLoading(false)
         return
       }
 
-      setLoading(true)
+      if (!silent) setLoading(true)
+
       try {
-        const data = await fetchAmbassadorMarketing()
+        const data = withMarketingTitle(await fetchAmbassadorMarketing())
         if (!active) return
+
+        const nextFingerprint = marketingFingerprint(data)
+        const changed = nextFingerprint !== fingerprintRef.current
+        fingerprintRef.current = nextFingerprint
         setMarketing(data)
         setError('')
 
-        const nextPreviews: Record<string, string> = {}
-        await Promise.all(
-          data.packs.flatMap(pack =>
-            pack.assets.map(async asset => {
-              try {
-                const preview = await fetchMarketingAssetPreview(asset)
-                if (!active) return
-                if (preview?.startsWith('blob:')) objectUrls.push(preview)
-                if (preview) nextPreviews[asset.id] = preview
-              } catch {
-                if (asset.preview) nextPreviews[asset.id] = asset.preview
-              }
-            }),
-          ),
-        )
-
-        if (active) setPreviewUrls(nextPreviews)
+        if (changed || !silent) {
+          const nextPreviews = await loadPreviews(data, previewUrlsRef.current)
+          if (active) setPreviewUrls(nextPreviews)
+        }
       } catch (err) {
         if (!active) return
-        setMarketing(emptyMarketing())
-        setError(
-          err instanceof Error ? err.message : 'Could not load marketing creatives.',
-        )
+        if (!silent) {
+          setMarketing(emptyMarketing())
+          setError(
+            err instanceof Error
+              ? err.message
+              : 'Could not load marketing creatives.',
+          )
+        }
       } finally {
-        if (active) setLoading(false)
+        if (active && !silent) setLoading(false)
       }
     }
 
-    void load()
+    function schedule() {
+      if (timer !== null) window.clearTimeout(timer)
+      timer = window.setTimeout(() => {
+        void tick()
+      }, MARKETING_POLL_MS)
+    }
+
+    async function tick() {
+      if (!active) return
+      if (document.visibilityState === 'visible') {
+        await load({ silent: true })
+      }
+      if (active) schedule()
+    }
+
+    function onVisibility() {
+      if (document.visibilityState === 'visible') {
+        void load({ silent: true }).then(() => {
+          if (active) schedule()
+        })
+      }
+    }
+
+    void load().then(() => {
+      if (active) schedule()
+    })
+    document.addEventListener('visibilitychange', onVisibility)
 
     return () => {
       active = false
-      for (const url of objectUrls) URL.revokeObjectURL(url)
+      if (timer !== null) window.clearTimeout(timer)
+      document.removeEventListener('visibilitychange', onVisibility)
+      clearObjectUrls(objectUrlsRef.current)
+      objectUrlsRef.current = []
     }
   }, [])
 
@@ -185,7 +289,7 @@ export function MarketingPage() {
       <main className="marketing">
         <header className="marketing-header">
           <div>
-            <h1>{marketing.title}</h1>
+            <h1>Marketing materials</h1>
             <p>{marketing.subtitle}</p>
           </div>
           <div className="marketing-profile">
@@ -205,7 +309,7 @@ export function MarketingPage() {
     <main className="marketing">
       <header className="marketing-header">
         <div>
-          <h1>{marketing.title}</h1>
+          <h1>Marketing materials</h1>
           <p>{marketing.subtitle}</p>
           {error ? (
             <p className="marketing-status is-error" role="alert">

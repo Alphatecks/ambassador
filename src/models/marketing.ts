@@ -30,7 +30,7 @@ export type MarketingPack = {
 }
 
 export const marketing = {
-  title: 'Marketing',
+  title: 'Marketing materials',
   subtitle: 'Daily creatives from admin. Download them and reshare on your platforms.',
   ambassador: {
     name: 'Rising Ambassador',

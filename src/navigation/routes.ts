@@ -4,7 +4,7 @@ export const influencerRoutes = {
   signIn: { name: 'SignIn', path: '/sign-in' },
   overview: { name: 'Overview', path: '/overview' },
   referrals: { name: 'Referrals', path: '/referrals' },
-  marketing: { name: 'Marketing', path: '/marketing' },
+  marketing: { name: 'Marketing materials', path: '/marketing' },
   xReach: { name: 'X Reach', path: '/x-reach' },
   rewards: { name: 'Rewards', path: '/rewards' },
   withdraw: { name: 'Withdraw', path: '/withdraw' },
