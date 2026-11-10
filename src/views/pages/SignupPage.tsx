@@ -15,10 +15,6 @@ import {
   saveSignupDraft,
   startXAuth,
 } from '../../controllers/ambassadorAuth.ts'
-import {
-  getOAuthHandoffUrl,
-  needsOAuthHandoff,
-} from '../../controllers/oauthDevHandoff.ts'
 import { useAmbassador } from '../../providers/AmbassadorContext.tsx'
 import { useToast } from '../../providers/ToastContext.tsx'
 import './SignupPage.css'
@@ -113,11 +109,6 @@ export function SignupPage() {
 
     try {
       saveSignupDraft(form)
-
-      if (needsOAuthHandoff()) {
-        window.location.assign(getOAuthHandoffUrl(window.location.origin, 'signup'))
-        return
-      }
 
       const data = await startXAuth('signup')
       if (data.min_followers) setMinFollowers(data.min_followers)

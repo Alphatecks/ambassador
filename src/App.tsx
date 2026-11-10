@@ -5,7 +5,6 @@ import { DashboardShell } from './views/layouts/DashboardShell.tsx'
 import { LandingPage } from './views/pages/LandingPage.tsx'
 import { LoginPage } from './views/pages/LoginPage.tsx'
 import { OAuthCallbackPage } from './views/pages/OAuthCallbackPage.tsx'
-import { OAuthDevHandoffPage } from './views/pages/OAuthDevHandoffPage.tsx'
 import { SignupPage } from './views/pages/SignupPage.tsx'
 
 const OverviewPage = lazy(() =>
@@ -55,7 +54,6 @@ export default function App() {
         <Route path="/sign-up" element={<SignupPage />} />
         <Route path="/sign-in" element={<LoginPage />} />
         <Route path="/oauth/callback" element={<OAuthCallbackPage />} />
-        <Route path="/oauth/dev-handoff" element={<OAuthDevHandoffPage />} />
         <Route element={<DashboardShell />}>
           <Route
             path="/overview"

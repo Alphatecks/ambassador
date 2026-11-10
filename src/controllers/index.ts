@@ -28,12 +28,6 @@ export {
   type XAuthIntent,
 } from './ambassadorAuth.ts'
 
-export {
-  bounceOAuthCallbackToLocalDev,
-  getOAuthHandoffUrl,
-  needsOAuthHandoff,
-} from './oauthDevHandoff.ts'
-
 export { getSessionToken, apiRequest, apiDownload } from './apiClient.ts'
 export {
   emptyOverview,

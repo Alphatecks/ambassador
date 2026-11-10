@@ -11,10 +11,6 @@ import {
   saveSignupDraft,
   startXAuth,
 } from '../../controllers/ambassadorAuth.ts'
-import {
-  getOAuthHandoffUrl,
-  needsOAuthHandoff,
-} from '../../controllers/oauthDevHandoff.ts'
 import { useAmbassador } from '../../providers/AmbassadorContext.tsx'
 import { useToast } from '../../providers/ToastContext.tsx'
 import './LoginPage.css'
@@ -73,11 +69,6 @@ export function LoginPage() {
         password: form.password,
         xHandle: '',
       })
-
-      if (needsOAuthHandoff()) {
-        window.location.assign(getOAuthHandoffUrl(window.location.origin, 'login'))
-        return
-      }
 
       const data = await startXAuth('login')
       window.location.assign(data.authorize_url)

@@ -9,7 +9,6 @@ import {
   readXConnection,
   saveSignupError,
 } from '../../controllers/ambassadorAuth.ts'
-import { bounceOAuthCallbackToLocalDev } from '../../controllers/oauthDevHandoff.ts'
 import { useToast } from '../../providers/ToastContext.tsx'
 import './SignupPage.css'
 
@@ -44,11 +43,6 @@ export function OAuthCallbackPage() {
   const backTo = intent === 'login' ? '/sign-in' : '/sign-up'
 
   useEffect(() => {
-    if (bounceOAuthCallbackToLocalDev(window.location.search)) {
-      setStatus('Sending X authorization back to your local app…')
-      return
-    }
-
     const code = searchParams.get('code')
     const state = searchParams.get('state')
     const oauthError = searchParams.get('error')
